@@ -106,12 +106,6 @@ def test_missing_credentials_detection():
     assert "Access Secret" in missing
     assert "Host URL" not in missing
 
-    # Local backend without URL
-    cfg_local = {"provider": "local", "backend_url": "   "}
-    provider, missing = check_missing_credentials(cfg_local)
-    assert provider == "Local Backend"
-    assert "Backend URL" in missing
-
 
 def test_provider_links_and_ui_elements():
     from PyQt6.QtWidgets import QApplication

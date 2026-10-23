@@ -44,7 +44,15 @@ hiddenimports = [
 ]
 
 excludes = [
-    'scipy',
+    'backend',
+    'worker',
+    'psycopg',
+    'psycopg2',
+    'asyncpg',
+    'fastapi',
+    'uvicorn',
+    'redis',
+    'fakeredis',
     'soundfile',
     'matplotlib',
     'tkinter',

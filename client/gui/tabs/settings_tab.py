@@ -41,13 +41,11 @@ class SettingsTab(QWidget):
         self.combo_provider = QComboBox()
         self.combo_provider.setFixedHeight(36)
         self.combo_provider.addItems(
-            ["AudD (Direct Cloud)", "ACRCloud (Direct Cloud)", "Local Backend (PostgreSQL/SQLite)"]
+            ["AudD (Direct Cloud)", "ACRCloud (Direct Cloud)"]
         )
         current_p = self.config.get("provider", "audd").lower()
         if current_p == "acrcloud":
             self.combo_provider.setCurrentIndex(1)
-        elif current_p == "local":
-            self.combo_provider.setCurrentIndex(2)
         else:
             self.combo_provider.setCurrentIndex(0)
         self.combo_provider.currentIndexChanged.connect(self._on_provider_changed)
@@ -115,22 +113,6 @@ class SettingsTab(QWidget):
 
         layout.addWidget(self.frame_acr)
 
-        # Local Backend Form Frame
-        self.frame_local = QFrame()
-        local_layout = QVBoxLayout(self.frame_local)
-        local_layout.setContentsMargins(0, 4, 0, 4)
-        local_layout.setSpacing(6)
-        local_layout.addWidget(QLabel("Local Recognition Backend URL:"))
-        self.input_backend_url = QLineEdit(self.config.get("backend_url", "http://127.0.0.1:8000"))
-        self.input_backend_url.setFixedHeight(36)
-        local_layout.addWidget(self.input_backend_url)
-
-        lbl_local_help = QLabel("Run your local backend via 'uvicorn backend.app:app --port 8000'.")
-        lbl_local_help.setStyleSheet("color: #9ca3af; font-size: 12px;")
-        local_layout.addWidget(lbl_local_help)
-
-        layout.addWidget(self.frame_local)
-
         # Capture Duration
         layout.addWidget(QLabel("Recording Clip Duration (Seconds):"))
         self.combo_duration = QComboBox()
@@ -170,7 +152,6 @@ class SettingsTab(QWidget):
         idx = self.combo_provider.currentIndex()
         self.frame_audd.setVisible(idx == 0)
         self.frame_acr.setVisible(idx == 1)
-        self.frame_local.setVisible(idx == 2)
 
     def focus_provider(self, provider: str) -> None:
         """Select provider and focus its first empty configuration input."""
@@ -183,16 +164,13 @@ class SettingsTab(QWidget):
                 self.input_acr_key.setFocus()
             else:
                 self.input_acr_secret.setFocus()
-        elif p == "local":
-            self.combo_provider.setCurrentIndex(2)
-            self.input_backend_url.setFocus()
         else:
             self.combo_provider.setCurrentIndex(0)
             self.input_audd_token.setFocus()
 
     def _on_save_settings(self) -> None:
         idx = self.combo_provider.currentIndex()
-        providers = ["audd", "acrcloud", "local"]
+        providers = ["audd", "acrcloud"]
         durations = [3, 5, 8, 10]
 
         self.config["provider"] = providers[idx]
@@ -200,7 +178,6 @@ class SettingsTab(QWidget):
         self.config["acrcloud_host"] = self.input_acr_host.text().strip()
         self.config["acrcloud_access_key"] = self.input_acr_key.text().strip()
         self.config["acrcloud_access_secret"] = self.input_acr_secret.text().strip()
-        self.config["backend_url"] = self.input_backend_url.text().strip()
         self.config["capture_seconds"] = durations[self.combo_duration.currentIndex()]
 
         save_config(self.config)

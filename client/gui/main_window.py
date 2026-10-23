@@ -56,11 +56,6 @@ def check_missing_credentials(config: Dict[str, Any]) -> tuple[str, List[str]]:
             missing.append("Access Secret")
         return "ACRCloud", missing
 
-    elif provider == "local":
-        if not config.get("backend_url", "").strip():
-            missing.append("Backend URL")
-        return "Local Backend", missing
-
     return provider.upper(), missing
 
 

@@ -24,7 +24,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "acrcloud_host": "",
     "acrcloud_access_key": "",
     "acrcloud_access_secret": "",
-    "backend_url": "http://127.0.0.1:8000",
     "capture_seconds": 5,
     "hotkey": "Ctrl+Shift+S",
     "minimize_to_tray": True,
