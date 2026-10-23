@@ -4,7 +4,7 @@ This document tracks completed engineering milestones in HearThis and outlines p
 
 ---
 
-## 1. Current Implementation Status (v1.1.0)
+## 1. Current Implementation Status (v1.2.0)
 
 | Subsystem / Feature | Status | Description | Implementation File |
 | :--- | :--- | :--- | :--- |

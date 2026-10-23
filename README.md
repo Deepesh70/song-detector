@@ -16,8 +16,8 @@ HearThis captures system audio directly from Windows playback via **WASAPI loopb
 
 Get the latest release directly from **[GitHub Releases](https://github.com/aadit/song-detector/releases/latest)**:
 
-- **Installer**: `HearThis-Setup-v1.1.X.exe` — Ultra-light (~200 KB) Windows setup wizard with Desktop shortcuts and Start Menu entry.
-- **Portable**: `HearThis-v1.1.X-portable.zip` — Standalone portable build (~325 KB). Extract and double-click `HearThis.exe` without installation.
+- **Installer**: `HearThis-Setup-v1.2.X.exe` — Ultra-light (~200 KB) Windows setup wizard with Desktop shortcuts and Start Menu entry.
+- **Portable**: `HearThis-v1.2.X-portable.zip` — Standalone portable build (~325 KB). Extract and double-click `HearThis.exe` without installation.
 
 ---
 
