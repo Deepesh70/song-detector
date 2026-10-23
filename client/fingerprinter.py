@@ -1,7 +1,5 @@
 from typing import List, Tuple, Optional
 import numpy as np
-from scipy import signal
-from scipy.ndimage import maximum_filter
 
 # Canonical DSP constants
 SAMPLE_RATE: int = 11_025
@@ -74,6 +72,7 @@ def compute_spectrogram(audio_buffer: np.ndarray) -> np.ndarray:
     
     Returns array of shape [n_frequency_bins, n_time_frames].
     """
+    from scipy import signal
     _, _, zxx = signal.stft(
         audio_buffer,
         fs=SAMPLE_RATE,
@@ -93,6 +92,7 @@ def extract_peaks(spectrogram: np.ndarray) -> List[Tuple[int, int, float]]:
     
     Returns list of (bin_index, frame_index, magnitude_db).
     """
+    from scipy.ndimage import maximum_filter
     num_bins, num_frames = spectrogram.shape
     if num_frames == 0 or num_bins == 0:
         return []

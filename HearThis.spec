@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files
 
 block_cipher = None
 
@@ -8,7 +8,7 @@ datas = [
     ('assets/icon.ico', 'assets'),
 ]
 
-# Collect certifi certificates if available
+# Collect certifi certificates
 try:
     datas += collect_data_files('certifi')
 except Exception:
@@ -17,13 +17,10 @@ except Exception:
 hiddenimports = [
     'soundcard',
     'soundcard.mediafoundation',
-    'soundfile',
     'cffi',
     'certifi',
     'httpx',
     'numpy',
-    'scipy',
-    'scipy.signal',
     'PyQt6',
     'PyQt6.QtCore',
     'PyQt6.QtGui',
@@ -42,9 +39,22 @@ hiddenimports = [
     'client.history_store',
     'client.capture',
     'client.preprocessor',
-    'client.fingerprinter',
     'client.direct_recognizer',
     'client.notifier',
+]
+
+excludes = [
+    'scipy',
+    'soundfile',
+    'matplotlib',
+    'tkinter',
+    'IPython',
+    'PyQt6.QtQml',
+    'PyQt6.QtQuick',
+    'PyQt6.QtPdf',
+    'PyQt6.QtNetwork',
+    'PyQt6.QtOpenGL',
+    'PyQt6.QtTest',
 ]
 
 a = Analysis(
@@ -56,7 +66,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'matplotlib', 'IPython'],
+    excludes=excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

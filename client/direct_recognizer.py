@@ -4,9 +4,9 @@ import hmac
 import io
 import threading
 import time
+import wave
 from typing import Any, Dict, Optional, Tuple
 import httpx
-import soundfile as sf
 import numpy as np
 
 from client.preprocessor import SAMPLE_RATE_CANONICAL
@@ -33,9 +33,15 @@ def get_shared_client() -> httpx.Client:
 
 
 def pcm_to_wav_bytes(pcm_buffer: np.ndarray, sample_rate: int = SAMPLE_RATE_CANONICAL) -> bytes:
-    """Convert float32 mono PCM numpy array to in-memory WAV byte stream."""
+    """Convert float32 mono PCM numpy array to in-memory WAV byte stream using built-in wave."""
     wav_bio = io.BytesIO()
-    sf.write(wav_bio, pcm_buffer, sample_rate, format="WAV", subtype="PCM_16")
+    int16_data = (np.clip(pcm_buffer, -1.0, 1.0) * 32767.0).astype(np.int16)
+    channels = 1 if int16_data.ndim == 1 else int16_data.shape[1]
+    with wave.open(wav_bio, "wb") as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        wf.writeframes(int16_data.tobytes())
     return wav_bio.getvalue()
 
 

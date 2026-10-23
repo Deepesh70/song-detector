@@ -1,6 +1,5 @@
 from typing import Tuple
 import numpy as np
-from scipy import signal
 
 # Canonical DSP constants
 SAMPLE_RATE_INPUT: int = 48_000
@@ -42,19 +41,28 @@ def resample_to_canonical(
 ) -> np.ndarray:
     """Resample audio buffer to target sample rate with an anti-aliasing low-pass filter.
     
-    Uses polyphase sinc filtering via scipy.signal.resample_poly with a sharp Kaiser filter.
+    Uses polyphase sinc filtering via scipy.signal.resample_poly if available,
+    falling back to linear interpolation if SciPy is excluded from the build.
     """
     if orig_sr == target_sr:
         return buffer.astype(np.float32)
 
-    # Calculate greatest common divisor for rational resampling factor
-    gcd = int(np.gcd(orig_sr, target_sr))
-    up = target_sr // gcd
-    down = orig_sr // gcd
+    try:
+        from scipy import signal
+        # Calculate greatest common divisor for rational resampling factor
+        gcd = int(np.gcd(orig_sr, target_sr))
+        up = target_sr // gcd
+        down = orig_sr // gcd
 
-    # Polyphase anti-aliasing sinc resampling with a 60 dB Kaiser window
-    resampled = signal.resample_poly(buffer, up=up, down=down, window=("kaiser", 5.653))
-    return resampled.astype(np.float32)
+        # Polyphase anti-aliasing sinc resampling with a 60 dB Kaiser window
+        resampled = signal.resample_poly(buffer, up=up, down=down, window=("kaiser", 5.653))
+        return resampled.astype(np.float32)
+    except ImportError:
+        duration = len(buffer) / orig_sr
+        target_len = int(duration * target_sr)
+        x_old = np.linspace(0, duration, len(buffer), endpoint=False)
+        x_new = np.linspace(0, duration, target_len, endpoint=False)
+        return np.interp(x_new, x_old, buffer).astype(np.float32)
 
 
 def preprocess_audio_buffer(

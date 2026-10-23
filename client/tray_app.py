@@ -5,11 +5,11 @@ import os
 import sys
 import threading
 import time
+import wave
 from pathlib import Path
 from typing import Optional
 import httpx
 import numpy as np
-import soundfile as sf
 import certifi
 
 # Ensure project root in sys.path
@@ -136,9 +136,8 @@ class SongDetectorTrayApp:
                     fallback_token = data.get("fallback_token")
                     if fallback_token:
                         print("[Local Miss] Forwarding 5s audio to global provider fallback...")
-                        wav_bio = io.BytesIO()
-                        sf.write(wav_bio, pcm_buffer, SAMPLE_RATE_CANONICAL, format="WAV")
-                        wav_bytes = wav_bio.getvalue()
+                        from client.direct_recognizer import pcm_to_wav_bytes
+                        wav_bytes = pcm_to_wav_bytes(pcm_buffer, SAMPLE_RATE_CANONICAL)
 
                         fb_resp = client.post(
                             "/v1/recognize/fallback",
