@@ -211,14 +211,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                     CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
 
         // Header Title & Logo Icon
-        HICON hLogo = reinterpret_cast<HICON>(LoadImageA(GetModuleHandleA(nullptr), MAKEINTRESOURCEA(1), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR));
+        HICON hLogo = reinterpret_cast<HICON>(GetClassLongPtrA(hwnd, GCLP_HICON));
         if (!hLogo) {
-            hLogo = reinterpret_cast<HICON>(LoadImageA(nullptr, "assets\\icon.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE));
+            hLogo = LoadIconA(GetModuleHandleA(nullptr), MAKEINTRESOURCEA(1));
         }
 
         if (hLogo) {
             HWND hIconCtrl = CreateWindowA("STATIC", "", WS_VISIBLE | WS_CHILD | SS_ICON,
-                                           28, 18, 32, 32, hwnd, nullptr, nullptr, nullptr);
+                                           28, 16, 32, 32, hwnd, nullptr, nullptr, nullptr);
             SendMessage(hIconCtrl, STM_SETICON, reinterpret_cast<WPARAM>(hLogo), 0);
 
             HWND hTitle = CreateWindowA("STATIC", "HearThis", WS_VISIBLE | WS_CHILD,
@@ -447,6 +447,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     HICON hIcon = LoadIconA(hInstance, MAKEINTRESOURCEA(1));
     if (!hIcon) {
         hIcon = reinterpret_cast<HICON>(LoadImageA(nullptr, "assets\\icon.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE));
+    }
+    if (!hIcon) {
+        char exePath[MAX_PATH] = {0};
+        GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+        char* lastSlash = strrchr(exePath, '\\');
+        if (lastSlash) {
+            strcpy_s(lastSlash + 1, MAX_PATH - (lastSlash - exePath + 1), "icon.ico");
+            hIcon = reinterpret_cast<HICON>(LoadImageA(nullptr, exePath, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE));
+        }
     }
 
     WNDCLASSEXA wc = {0};
