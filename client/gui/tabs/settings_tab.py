@@ -1,5 +1,6 @@
 """Settings tab for provider configuration, credentials, and capture parameters."""
 
+import webbrowser
 from typing import Any, Dict, Optional
 from PyQt6.QtCore import pyqtSignal, QTimer
 from PyQt6.QtWidgets import (
@@ -63,6 +64,19 @@ class SettingsTab(QWidget):
         self.input_audd_token.setEchoMode(QLineEdit.EchoMode.Password)
         self.input_audd_token.setPlaceholderText("Enter your AudD personal API token")
         audd_layout.addWidget(self.input_audd_token)
+
+        audd_help_row = QHBoxLayout()
+        lbl_audd_help = QLabel("Don't have a token? Register for free on AudD:")
+        lbl_audd_help.setStyleSheet("color: #9ca3af; font-size: 12px;")
+        btn_get_audd = QPushButton("Get Free AudD Token")
+        btn_get_audd.setFixedHeight(28)
+        btn_get_audd.setStyleSheet("font-size: 11px; padding: 0 12px;")
+        btn_get_audd.clicked.connect(lambda: webbrowser.open("https://audd.io"))
+        audd_help_row.addWidget(lbl_audd_help)
+        audd_help_row.addWidget(btn_get_audd)
+        audd_help_row.addStretch()
+        audd_layout.addLayout(audd_help_row)
+
         layout.addWidget(self.frame_audd)
 
         # ACRCloud Form Frame
@@ -86,6 +100,19 @@ class SettingsTab(QWidget):
         self.input_acr_secret.setFixedHeight(36)
         self.input_acr_secret.setEchoMode(QLineEdit.EchoMode.Password)
         acr_layout.addWidget(self.input_acr_secret)
+
+        acr_help_row = QHBoxLayout()
+        lbl_acr_help = QLabel("Need project credentials? Open ACRCloud console:")
+        lbl_acr_help.setStyleSheet("color: #9ca3af; font-size: 12px;")
+        btn_get_acr = QPushButton("Get ACRCloud Credentials")
+        btn_get_acr.setFixedHeight(28)
+        btn_get_acr.setStyleSheet("font-size: 11px; padding: 0 12px;")
+        btn_get_acr.clicked.connect(lambda: webbrowser.open("https://console.acrcloud.com"))
+        acr_help_row.addWidget(lbl_acr_help)
+        acr_help_row.addWidget(btn_get_acr)
+        acr_help_row.addStretch()
+        acr_layout.addLayout(acr_help_row)
+
         layout.addWidget(self.frame_acr)
 
         # Local Backend Form Frame
@@ -97,6 +124,11 @@ class SettingsTab(QWidget):
         self.input_backend_url = QLineEdit(self.config.get("backend_url", "http://127.0.0.1:8000"))
         self.input_backend_url.setFixedHeight(36)
         local_layout.addWidget(self.input_backend_url)
+
+        lbl_local_help = QLabel("Run your local backend via 'uvicorn backend.app:app --port 8000'.")
+        lbl_local_help.setStyleSheet("color: #9ca3af; font-size: 12px;")
+        local_layout.addWidget(lbl_local_help)
+
         layout.addWidget(self.frame_local)
 
         # Capture Duration

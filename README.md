@@ -2,7 +2,7 @@
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI Status](https://img.shields.io/badge/tests-24%20passed-brightgreen.svg)]()
+[![CI Status](https://img.shields.io/badge/tests-25%20passed-brightgreen.svg)]()
 [![Code Style](https://img.shields.io/badge/code%20style-typed-black.svg)]()
 
 HearThis is a production-grade system audio recognition desktop application modeled after Shazam's acoustic landmark fingerprinting algorithm ([Wang, 2003](https://www.ee.columbia.edu/~dpwe/papers/Wang03-shazam.pdf)). 

@@ -27,6 +27,7 @@ class IdentifyTab(QWidget):
         super().__init__(parent)
         self.current_spotify_url: str = ""
         self.current_youtube_url: str = ""
+        self.current_provider_url: str = ""
         self._init_ui()
 
     def _init_ui(self) -> None:
@@ -125,6 +126,13 @@ class IdentifyTab(QWidget):
         self.btn_open_settings.clicked.connect(self.settings_requested.emit)
         self.action_links_layout.addWidget(self.btn_open_settings)
 
+        self.btn_get_api_key = QPushButton("Get Credentials")
+        self.btn_get_api_key.setFixedHeight(28)
+        self.btn_get_api_key.setStyleSheet("font-size: 12px; padding: 0 14px;")
+        self.btn_get_api_key.setVisible(False)
+        self.btn_get_api_key.clicked.connect(self._open_provider_site)
+        self.action_links_layout.addWidget(self.btn_get_api_key)
+
         self.action_links_layout.addStretch()
         card_layout.addLayout(self.action_links_layout)
 
@@ -157,6 +165,7 @@ class IdentifyTab(QWidget):
     def show_result(self, result: Dict[str, Any]) -> None:
         self.set_listening(False)
         self.btn_open_settings.setVisible(False)
+        self.btn_get_api_key.setVisible(False)
 
         if result.get("matched"):
             title = result.get("title", "Unknown Title")
@@ -185,6 +194,7 @@ class IdentifyTab(QWidget):
     def show_failure(self, error_msg: str) -> None:
         self.set_listening(False)
         self.btn_open_settings.setVisible(False)
+        self.btn_get_api_key.setVisible(False)
         self.lbl_status.setText(f"Failed: {error_msg[:80]}")
 
     def show_missing_credentials(self, provider_name: str, missing_fields: List[str]) -> None:
@@ -196,11 +206,27 @@ class IdentifyTab(QWidget):
             f"Missing {provider_name} parameters: {field_list}."
         )
         self.lbl_result_meta.setText(
-            "Click Open Settings below to enter your credentials and try again."
+            "Click Open Settings below to enter your credentials, or visit the provider to get an API key."
         )
         self.btn_spotify.setVisible(False)
         self.btn_youtube.setVisible(False)
         self.btn_open_settings.setVisible(True)
+
+        if "audd" in provider_name.lower():
+            self.current_provider_url = "https://audd.io"
+            self.btn_get_api_key.setText("Get Free AudD Token")
+            self.btn_get_api_key.setVisible(True)
+        elif "acr" in provider_name.lower():
+            self.current_provider_url = "https://console.acrcloud.com"
+            self.btn_get_api_key.setText("Get ACRCloud Credentials")
+            self.btn_get_api_key.setVisible(True)
+        else:
+            self.current_provider_url = ""
+            self.btn_get_api_key.setVisible(False)
+
+    def _open_provider_site(self) -> None:
+        if self.current_provider_url:
+            webbrowser.open(self.current_provider_url)
 
     def _open_spotify(self) -> None:
         if self.current_spotify_url:

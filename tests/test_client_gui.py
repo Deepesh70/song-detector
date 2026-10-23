@@ -113,3 +113,30 @@ def test_missing_credentials_detection():
     assert "Backend URL" in missing
 
 
+def test_provider_links_and_ui_elements():
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+
+    from client.gui.tabs.settings_tab import SettingsTab
+    from client.gui.tabs.identify_tab import IdentifyTab
+
+    # Instantiation check for tabs
+    settings = SettingsTab({"provider": "audd", "audd_token": ""})
+    assert hasattr(settings, "frame_audd")
+    assert hasattr(settings, "frame_acr")
+
+    identify = IdentifyTab()
+    assert hasattr(identify, "btn_get_api_key")
+    identify.show_missing_credentials("AudD", ["API Token"])
+    assert not identify.btn_get_api_key.isHidden()
+    assert identify.current_provider_url == "https://audd.io"
+
+    identify.show_missing_credentials("ACRCloud", ["Host URL", "Access Key"])
+    assert not identify.btn_get_api_key.isHidden()
+    assert identify.current_provider_url == "https://console.acrcloud.com"
+
+
+
+
