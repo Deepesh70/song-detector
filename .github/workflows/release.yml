@@ -7,47 +7,38 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag Name (e.g. v1.0.0)'
+        description: 'Release Tag Name (e.g. v1.1.0)'
         required: true
-        default: 'v1.0.0'
+        default: 'v1.1.0'
 
 permissions:
   contents: write
 
 jobs:
   build-windows:
-    name: Build Windows Standalone Executable
+    name: Build Native Windows Executable
     runs-on: windows-latest
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-        cache: 'pip'
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-    - name: Install Build Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
+    - name: Compile Standalone Executable and Tests
+      run: cmake --build build --config Release
 
-    - name: Run Verification Test Suite
-      run: |
-        pytest -v
+    - name: Run CTest Verification
+      run: ctest --test-dir build -C Release --output-on-failure
 
-    - name: Build Standalone Executable with PyInstaller
-      run: |
-        pyinstaller HearThis.spec --noconfirm --clean
-
-    - name: Create Portable Zip Archive
+    - name: Prepare Distribution Directory
       shell: pwsh
       run: |
         $TAG = "${{ github.event.inputs.tag_name || github.ref_name }}"
-        Compress-Archive -Path dist\HearThis.exe -DestinationPath "dist\HearThis-$TAG-portable.zip" -Force
+        New-Item -ItemType Directory -Path dist -Force
+        Copy-Item build/Release/HearThis.exe dist/HearThis.exe -Force
+        Compress-Archive -Path dist/HearThis.exe -DestinationPath "dist/HearThis-$TAG-portable.zip" -Force
 
     - name: Build Windows Setup Installer with Inno Setup
       run: |

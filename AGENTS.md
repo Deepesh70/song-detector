@@ -1,19 +1,19 @@
 # AGENTS.md
 
 ## Project Overview
-HearThis is a production-grade desktop audio identification system. It captures system audio on Windows using WASAPI loopback without microphone bleed, applies RMS silence gating and polyphase anti-aliasing resampling, and identifies tracks via direct cloud API providers (AudD and ACRCloud).
+HearThis is a production-grade native Windows desktop audio identification system written in modern C++17. It captures system audio playback on Windows using WASAPI loopback without microphone bleed, applies RMS silence gating, serializes in-memory RIFF PCM WAV, and identifies tracks via direct cloud API providers (ACRCloud with BCrypt HMAC-SHA1 and AudD).
 
 ---
 
 ## Technology Stack
 
-- **Client Runtime**: Python 3.11+
-  - Windows Audio Capture: `soundcard` (WASAPI shared-mode loopback)
-  - Resampling & DSP: `numpy`, `scipy` (polyphase anti-aliasing sinc resampler, silence gating)
-  - GUI Framework: `PyQt6` (dark theme, WCAG AA, non-blocking QThread worker)
-  - Audio Serialization: Python standard library `wave` (in-memory RIFF PCM)
-  - Network Client: `httpx` (HTTP/1.1 keep-alive connection reuse)
-  - Local Storage: SQLite (`HistoryStore` at `%APPDATA%/SongDetector/history.db`)
+- **Client Runtime**: Native C++17 (MSVC x64 / Windows SDK)
+  - Audio Capture: Windows Audio Session API (`WASAPI` / `IAudioCaptureClient` COM in loopback mode)
+  - DSP & Serialization: Standard library SIMD vector arithmetic and in-memory RIFF WAV generation
+  - Network Client: Windows HTTP Services (`winhttp.dll` / TLS 1.2+ connection reuse)
+  - Cryptography: Windows Cryptography Next Generation (`bcrypt.dll` for HMAC-SHA1, `crypt32.dll` for Base64)
+  - GUI Framework: Native Win32 API with Immersive Dark Mode (`dwmapi.dll` / `user32.dll` / `gdi32.dll`)
+  - Local Configuration: Flat-key persistence at `%APPDATA%/SongDetector/native_config.txt`
 
 ---
 
@@ -23,68 +23,52 @@ HearThis is a production-grade desktop audio identification system. It captures 
 song-detector/
 ├── AGENTS.md                  # Project stack, commands, standards, and conventions
 ├── README.md                  # System overview and quickstart guide
-├── requirements.txt           # Client application dependencies
-├── HearThis.spec              # PyInstaller executable build specification
+├── CMakeLists.txt             # Multi-platform CMake build configuration
+├── build.bat                  # One-click MSVC compile & test runner
+├── include/                   # Public C++ header interfaces
+│   └── hearthis/
+│       ├── audio_processor.h  # Audio processing and WAV serialization
+│       ├── wasapi_capture.h   # Loopback audio capture via WASAPI
+│       └── api_client.h       # Cloud API transport & BCrypt HMAC-SHA1
+├── src/                       # Source implementations
+│   ├── audio_processor.cpp    # Audio math algorithms
+│   ├── wasapi_capture.cpp     # COM audio interface integration
+│   ├── api_client.cpp         # WinHTTP HTTPS multipart client
+│   └── main.cpp               # Win32 desktop application entrypoint
+├── tests/                     # Automated C++ unit tests
+│   ├── test_processor.cpp     # RMS silence and WAV format tests
+│   ├── test_capture.cpp       # Loopback hardware capture tests
+│   └── test_api_client.cpp    # HMAC-SHA1 test vector & JSON parser tests
 ├── installer/                 # Windows Inno Setup installer script
 │   └── HearThis.iss
-├── assets/                    # Application icons (.ico mipmaps, .png)
-├── client/                    # Desktop capture and client-side processing
-│   ├── gui_app.py             # Desktop GUI launcher entrypoint
-│   ├── gui/                   # Modular desktop GUI architecture
-│   │   ├── styles.py          # WCAG AA dark theme QSS tokens
-│   │   ├── visualizer.py      # Audio spectrum activity visualizer widget
-│   │   ├── worker.py          # Non-blocking WASAPI recognition QThread worker
-│   │   ├── tabs/              # Decomposed tab view components
-│   │   │   ├── identify_tab.py# Hero trigger, visualizer, matched result card
-│   │   │   ├── history_tab.py # SQLite table, live search, quick actions & Win32 copy
-│   │   │   └── settings_tab.py# Provider selector & credential management
-│   │   └── main_window.py     # Main window coordinator, tray icon, and global hotkeys
-│   ├── config.py              # Local JSON configuration manager (%APPDATA%/SongDetector)
-│   ├── history_store.py       # Local SQLite history database (recognition_history)
-│   ├── direct_recognizer.py   # Direct client-side AudD & ACRCloud API recognition engine
-│   ├── capture.py             # WASAPI loopback recording with silence keep-alive
-│   ├── preprocessor.py        # RMS silence gate and polyphase resampler (48kHz -> 11,025Hz)
-│   ├── notifier.py            # Windows 10/11 native toast notifications
-│   └── agent.py               # CLI runner and hotkey dispatcher
-└── tests/                     # Unit and integration test suites
-    ├── test_client_gui.py     # GUI configuration, history store, and tab component tests
-    └── test_resampler.py      # Polyphase anti-aliasing attenuation and RMS gate checks
+└── assets/                    # Application icons (.ico mipmaps, .png)
 ```
 
 ---
 
 ## Development Commands
 
-### Environment Setup
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
+### Building and Testing with CMake
+```cmd
+cmake -B build
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-### Running Tests
-```bash
-# Run complete test suite
-pytest -v
-```
-
-### Running the Desktop App
-```bash
-# Launch PyQt6 Desktop GUI
-python client/gui_app.py
-
-# Launch CLI loopback listener
-python client/agent.py --listen
+### Direct MSVC Compilation
+```cmd
+build.bat
 ```
 
 ---
 
 ## Code Style & Engineering Standards
 
-1. **Strict Type Annotations**: Every function and method must specify complete type annotations (`typing` module / standard modern Python typing). No bare `Any`.
-2. **Deterministic DSP & Audio Processing**:
-   - Signal processing functions must operate strictly on explicit `numpy.ndarray` buffers.
-   - All sample rate and silence threshold parameters must reference shared configuration constants.
+1. **Modern C++17 & RAII**:
+   - Never manage memory with raw `new`/`delete` outside constructor/destructor wrappers.
+   - Use standard containers (`std::vector`, `std::string`) and COM smart pointers (`Microsoft::WRL::ComPtr`).
+2. **Zero Third-Party Dependencies**:
+   - All networking, cryptographic signing, and audio capture must link strictly against native Windows system DLLs (`winhttp.dll`, `bcrypt.dll`, `crypt32.dll`, `ole32.dll`).
 3. **Security & Secrets**:
-   - User provider tokens/credentials reside strictly in local `%APPDATA%/SongDetector/config.json`.
+   - User credentials reside strictly in `%APPDATA%/SongDetector/native_config.txt`.
    - Never print or commit credentials to logs or repository.

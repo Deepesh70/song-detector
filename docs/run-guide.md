@@ -1,180 +1,60 @@
 # Operator & Execution Guide
 
-This document provides step-by-step instructions for running, testing, and operating Song Detector on Windows.
+This document provides step-by-step instructions for building, testing, and running HearThis on Windows.
 
 ---
 
-## 1. Prerequisites & Environment
+## 1. Prerequisites
 
-The project runs within the `song-detector` Conda environment on Python 3.11+.
-
-### Activate the Environment
-Always activate the environment in your terminal before running any scripts:
-
-```powershell
-conda activate song-detector
-```
-
-If you are using Git Bash / MINGW64 on Windows:
-```bash
-source $(conda info --base)/etc/profile.d/conda.sh
-conda activate song-detector
-```
+- **Operating System**: Windows 10 or Windows 11 (64-bit)
+- **Compiler**: Microsoft Visual Studio 2022 (with C++ Desktop development workload) or Build Tools for Visual Studio
+- **Optional**: CMake 3.20+ (included with Visual Studio)
 
 ---
 
-## 2. Running Automated Tests
+## 2. Building the Project
 
-Run the full automated test suite (DSP attenuation, bit packing, PostgreSQL signed int32 conversions, sliding window histogram matching, fallback token security, and end-to-end recognition):
-
-```powershell
-pytest -v
+### Method A: Quick Build (`build.bat`)
+Open any terminal and run:
+```cmd
+build.bat
 ```
+This script initializes the MSVC x64 developer environment, compiles and executes all 3 unit test suites, and produces `HearThis.exe` in under 5 seconds.
 
-All 18 unit and integration tests should pass with zero errors.
+### Method B: CMake Build
+```cmd
+cmake -B build
+cmake --build build --config Release
+```
+The compiled executable will be placed in `build\Release\HearThis.exe`.
 
 ---
 
-## 3. Hardware Diagnostic Check
+## 3. Running Unit Tests
 
-Before starting the full system, run the standalone diagnostic tool to verify that Windows WASAPI loopback audio capture and the silence gate are working with your speakers or headphones:
-
-```powershell
-python client/test_capture.py
+Run all unit tests using CMake's test runner:
+```cmd
+ctest --test-dir build -C Release --output-on-failure
 ```
 
-### Steps:
-1. Start playing any music or video on Spotify, YouTube, etc.
-2. Press `Enter` in the terminal when prompted.
-3. The script records 5 seconds of audio, reports the measured RMS dBFS level, verifies resampling to $11,025\text{ Hz}$ mono, displays the 5-band peak distribution, and writes [`client/captured_test.wav`](file:///c:/Users/aadit/Desktop/song-detector/client/captured_test.wav).
+The test suite covers:
+1. **Audio Processor**: RMS silence detection (-50 dBFS gate), stereo-to-mono downmixing, and 44-byte standard RIFF WAV packing.
+2. **WASAPI Loopback Capture**: Hardware endpoint activation, IEEE float format verification, and real-time packet extraction.
+3. **API Client & Cryptography**: Native Windows BCrypt HMAC-SHA1 signature computation and JSON response parsing.
 
 ---
 
-## 4. End-to-End Song Identification
+## 4. Running the Desktop Application
 
-Identifying songs playing on your PC requires two components running concurrently: the **Backend API Service** and the **Desktop Agent**.
-
-### Step 1: Start the Backend Service (Terminal 1)
-Open your first terminal in the project directory:
-
-```powershell
-conda activate song-detector
-uvicorn backend.app:app --host 127.0.0.1 --port 8000
-# OR
-# python -m backend.app
+Launch `HearThis.exe`:
+```cmd
+HearThis.exe
 ```
 
-The service will boot on `http://127.0.0.1:8000`:
-- Auto-detects PostgreSQL on port 5432 (or falls back to local zero-config `song_detector.sqlite3`).
-- Loads `AUDD_API_TOKEN` from `.env` for universal commercial song recognition.
-
----
-
-### Step 2: Run the Desktop Loopback Agent (Terminal 2)
-Open a second terminal:
-
-```powershell
-conda activate song-detector
-```
-
-#### Option A: Single 5-Second Identification (`--once`)
-Identifies whatever song is currently playing and exits immediately:
-
-```powershell
-python client/agent.py --once
-```
-
-**Example Output:**
-```text
-[Listening] Capturing 5 seconds of system playback via WASAPI...
-[Fingerprinted] Extracted 800 landmark pairs. Checking local catalog...
-[Local Miss] Not in local library. Forwarding 5s audio to global provider (AudD)...
-==================================================
->>> SONG IDENTIFIED (AudD Global Catalog) <<<
-Title:        Starboy
-Artist:       The Weeknd ft. Daft Punk
-Album:        Starboy
-Release Date: 2016-09-22
-Listen:       https://lis.tn/Starboy
-==================================================
-```
-
-#### Option B: Continuous Background Listener (`--listen`)
-Keeps listening continuously in the background and identifies songs automatically whenever music plays:
-
-```powershell
-python client/agent.py --listen
-```
-- If your computer is quiet, the RMS silence gate drops the buffer at zero CPU/network cost:
-  `[Silence] Audio energy below -50 dBFS silence gate. Skipping recognition.`
-- When music plays, it captures, fingerprints, and identifies the track automatically.
-- Press `Ctrl + C` to stop.
-
-#### Option C: Windows System Tray Daemon with Global Hotkey
-Sits silently in the Windows system tray and identifies music whenever you press `Ctrl + Shift + S`, `F9`, or `F8`:
-
-```powershell
-python client/tray_app.py
-```
-- **Global Hotkeys**: Press `Ctrl + Shift + S`, `Ctrl + Alt + S`, `F9`, or `F8` from any application or game.
-- **Desktop Toast**: Automatically pops up a native Windows Toast notification displaying the song title, artist, and album.
-- **System Tray Icon**: Left-click to identify immediately; right-click for context menu.
-
-#### Option D: Full-Fledged Desktop Application (PyQt6 GUI)
-A full-featured dark-mode desktop application with live audio visualizer, history log, and direct API key settings:
-
-```powershell
-python client/gui_app.py
-```
-- **Identify Music Tab**: Interactive central trigger button, animated audio waveform visualizer, and "Now Playing" result card with direct links to Spotify and YouTube.
-- **History Tab**: Searchable, persistent SQLite audit log (`%APPDATA%/SongDetector/history.db`) recording all identified tracks with timestamps.
-- **Settings Tab**: Enter your personal AudD token or ACRCloud credentials directly to identify music with zero server infrastructure required.
-- **System Tray Docking**: Automatically docks in the Windows system tray on close.
-
----
-
-## 5. Ingesting Your Own Music Library (Local Catalog)
-
-If you have your own MP3, WAV, FLAC, or OGG files that you want recognized locally with zero external API calls:
-
-1. Place your audio files inside the `music_catalog/` directory:
-   ```powershell
-   mkdir music_catalog
-   # Copy your songs into music_catalog/
-   ```
-2. Run the offline ingestion worker:
-   ```powershell
-   python worker/ingest.py --catalog-dir music_catalog
-   ```
-3. When any of those ingested songs play on your machine, the engine identifies them locally in under $50\text{ms}$ with zero network traffic:
-   ```text
-   ==================================================
-   >>> SONG IDENTIFIED (Local Catalog Hit) <<<
-   Title:      Demo_Acoustic_Song
-   Artist:     Unknown Artist
-   Offset:     12.0s
-   Prominence: 73.0 (Votes: 73)
-   ==================================================
-   ```
-
----
-
-## 6. Environment Configuration (`.env`)
-
-Secrets and database endpoints are configured in `.env` (excluded from git via `.gitignore`):
-
-| Variable | Purpose | Default / Example |
-| :--- | :--- | :--- |
-| `AUDD_API_TOKEN` | Commercial recognition token for 100M+ songs | `<your_token_here>` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@127.0.0.1:5432/song_detector` |
-| `REDIS_URL` | Redis cache for fallback token nonces | `redis://127.0.0.1:6379/0` |
-
-*Note: If PostgreSQL or Redis are not running, the system automatically uses the local SQLite engine (`song_detector.sqlite3`) and an in-memory cache.*
-
----
-
-## 7. Troubleshooting
-
-- **"No WASAPI loopback audio device detected"**: Ensure that your speakers or headphones are connected and set as the default playback device in Windows Sound Settings.
-- **"Audio energy below -50 dBFS"**: The system was playing near-silence. Increase your media volume or unmute the application.
-- **"Connection Error: Could not connect to API server"**: Ensure Terminal 1 is running `uvicorn backend.app:app --host 127.0.0.1 --port 8000`.
+### First-Time Configuration:
+1. Select your preferred provider (**ACRCloud** is selected by default).
+2. Enter your credentials:
+   - For **ACRCloud**: Host URL (e.g., `identify-eu-west-1.acrcloud.com`), Access Key, and Access Secret.
+   - For **AudD**: API Token.
+3. Your credentials and preferred scan duration are automatically saved to `%APPDATA%\SongDetector\native_config.txt`.
+4. Play any song in Spotify, YouTube, or a game, and click **Identify Music Now**.
