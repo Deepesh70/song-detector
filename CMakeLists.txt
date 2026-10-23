@@ -21,8 +21,8 @@ target_link_libraries(hearthis_core PUBLIC
     crypt32
 )
 
-# Main Standalone Desktop GUI Application (WIN32 Subsystem)
-add_executable(HearThis WIN32 src/main.cpp)
+# Main Standalone Desktop GUI Application (WIN32 Subsystem with embedded icon)
+add_executable(HearThis WIN32 src/main.cpp src/resource.rc)
 target_link_libraries(HearThis PRIVATE
     hearthis_core
     dwmapi

@@ -1,56 +1,65 @@
 # Implementation Status & Future Roadmap
 
-This document tracks completed architectural milestones and outlines planned future extensions for production scaling.
+This document tracks completed engineering milestones in HearThis and outlines planned technical enhancements for future releases.
 
 ---
 
-## 1. Current Implementation Status
+## 1. Current Implementation Status (v1.1.0)
 
-| Component | Status | Description | Reference File |
+| Subsystem / Feature | Status | Description | Implementation File |
 | :--- | :--- | :--- | :--- |
-| **Silence Gate** | **Done** | Evaluates RMS energy against $-50\text{ dBFS}$ floor to reject ambient noise before processing. | [`client/preprocessor.py`](file:///c:/Users/aadit/Desktop/song-detector/client/preprocessor.py) |
-| **Mono Downmixing** | **Done** | Downmixes stereo channels to single mono channel. | [`client/preprocessor.py`](file:///c:/Users/aadit/Desktop/song-detector/client/preprocessor.py) |
-| **Polyphase Resampler** | **Done** | Anti-aliased sinc resampler from $48\text{ kHz}$ to canonical $11,025\text{ Hz}$ mono ($>52\text{ dB}$ stopband attenuation). | [`client/preprocessor.py`](file:///c:/Users/aadit/Desktop/song-detector/client/preprocessor.py) |
-| **Log-Band Peak Extraction** | **Done** | 5 logarithmic frequency bands with 2D local maxima ($\pm 5$ bins, $\pm 5$ frames) and dynamic magnitude floor ($-45\text{ dB}$). | [`client/fingerprinter.py`](file:///c:/Users/aadit/Desktop/song-detector/client/fingerprinter.py) |
-| **Combinatorial Pairing** | **Done** | Forward target pairing in time $\Delta t \in [3, 258]$ and frequency $|\Delta f| \le 250$ with top-$5$ amplitude ranking. | [`client/fingerprinter.py`](file:///c:/Users/aadit/Desktop/song-detector/client/fingerprinter.py) |
-| **Signed 32-Bit Bit Packing** | **Done** | 10-bit $f_1$, 10-bit $f_2$, 8-bit $\Delta t$ with two's complement conversion for PostgreSQL `INT` compatibility. | [`client/fingerprinter.py`](file:///c:/Users/aadit/Desktop/song-detector/client/fingerprinter.py) |
-| **Sliding Window Histogram** | **Done** | Unquantized $\delta t$ integer histogram evaluated with 3-frame sliding window sum. | [`backend/matcher.py`](file:///c:/Users/aadit/Desktop/song-detector/backend/matcher.py) |
-| **In-Track Prominence Scoring** | **Done** | Evaluates $V_1 \ge 15$ and peak-to-noise ratio $V_1 / V_{\text{noise}} \ge 3.0$ with duplicate track overlap detection. | [`backend/matcher.py`](file:///c:/Users/aadit/Desktop/song-detector/backend/matcher.py) |
-| **Fallback Token Security** | **Done** | Single-use JWT with nonce (`jti`) validated and atomically consumed via Redis `GETDEL`. | [`backend/fallback.py`](file:///c:/Users/aadit/Desktop/song-detector/backend/fallback.py) |
-| **System Tray Daemon & Hotkeys** | **Done** | Native Win32 tray icon, event-driven `RegisterHotKey` (`Ctrl+Shift+S`, `F9`, `F8`), tray click triggers, and Windows Toasts. | [`client/gui/main_window.py`](file:///c:/Users/aadit/Desktop/song-detector/client/gui/main_window.py) |
-| **HTTP Keep-Alive Connection Pool** | **Done** | Thread-safe `httpx.Client` session pool eliminating TCP/TLS handshake latency on repeated API requests. | [`client/direct_recognizer.py`](file:///c:/Users/aadit/Desktop/song-detector/client/direct_recognizer.py) |
-| **Query Fingerprint LRU Cache** | **Done** | Thread-safe, memory-bounded 1024-entry LRU cache eliminating redundant database index lookups. | [`backend/matcher.py`](file:///c:/Users/aadit/Desktop/song-detector/backend/matcher.py) |
-| **Progressive Chunk Streaming** | **Done** | Two-tier capture pipeline (3.0s fast probe with 5.0s fallback) cutting user recognition latency by 40%. | [`client/gui/worker.py`](file:///c:/Users/aadit/Desktop/song-detector/client/gui/worker.py) |
-| **Unit & End-to-End Test Coverage** | **Done** | 24 automated tests covering bit packing, DSP filtering, resampler attenuation, matcher, LRU caching, credentials, and end-to-end crop recognition. | [`tests/`](file:///c:/Users/aadit/Desktop/song-detector/tests/) |
+| **WASAPI Loopback Capture** | **Complete** | Captures 48 kHz stereo system audio via COM `IAudioCaptureClient` without microphone bleed. | [`src/wasapi_capture.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/wasapi_capture.cpp) |
+| **Audio Clock Keep-Alive** | **Complete** | Silent background render stream preventing WASAPI loopback starvation during digital silence. | [`src/wasapi_capture.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/wasapi_capture.cpp) |
+| **Stereo Downmixing** | **Complete** | Single-pass floating point average downmix from stereo to mono. | [`src/audio_processor.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/audio_processor.cpp) |
+| **RMS Silence Energy Gate** | **Complete** | Computes RMS energy against a $-50\text{ dBFS}$ floor to reject silence and avoid network waste. | [`src/audio_processor.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/audio_processor.cpp) |
+| **RIFF WAV Serialization** | **Complete** | Converts floats to 16-bit linear PCM and serializes a 44-byte standard RIFF header in memory. | [`src/audio_processor.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/audio_processor.cpp) |
+| **ACRCloud Client** | **Complete** | Computes HMAC-SHA1 signatures via Windows `bcrypt.dll` and Base64 via `crypt32.dll`. | [`src/api_client.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/api_client.cpp) |
+| **AudD Client** | **Complete** | Multipart form-data HTTP client over Windows `winhttp.dll`. | [`src/api_client.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/api_client.cpp) |
+| **Config Persistence** | **Complete** | Automatic persistence of credentials, active provider, and duration to `%APPDATA%/SongDetector/native_config.txt`. | [`src/main.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/main.cpp) |
+| **Win32 Immersive UI** | **Complete** | Dark-mode native Win32 window (Segoe UI typography, DWM immersive dark mode, async worker). | [`src/main.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/main.cpp) |
+| **Scan Duration Selector** | **Complete** | Runtime selector supporting 5-second quick scan and 10-second deep scan modes. | [`src/main.cpp`](file:///c:/Users/aadit/Desktop/song-detector/src/main.cpp) |
+| **Automated CTest Suite** | **Complete** | Automated unit tests covering DSP gating, WASAPI packet extraction, and cryptographic verification. | [`tests/`](file:///c:/Users/aadit/Desktop/song-detector/tests/) |
+| **Inno Setup Installer** | **Complete** | Automated setup packaging generating desktop shortcuts and Start Menu entries. | [`installer/HearThis.iss`](file:///c:/Users/aadit/Desktop/song-detector/installer/HearThis.iss) |
 
 ---
 
-## 2. Future Implementations & Optimizations
+## 2. Planned Future Enhancements
 
-### 1. High-Throughput DSP Acceleration (C / Rust Extension)
-- **Objective**: If Python STFT and 2D peak extraction become a throughput bottleneck during batch catalog ingestion of hundreds of thousands of tracks, rewrite the core inner loops in Rust (using `pyo3` and `rustfft`) or C/C++.
-- **Key Focus**:
-  - Zero-copy audio buffer passing from Python NumPy arrays into SIMD-accelerated FFT routines.
-  - Parallelizing 2D local maxima filtering using AVX2 / NEON vector intrinsics.
-- **Trigger**: Ingestion throughput dropping below 50x realtime on multi-core servers.
+### 2.1 Global System Hotkey Integration
+- **Objective**: Trigger music identification instantly from anywhere in Windows without switching window focus.
+- **Implementation Strategy**:
+  - Register global hotkeys using the Win32 `RegisterHotKey(hwnd, HOTKEY_ID, MOD_CONTROL | MOD_SHIFT, 'S')` API during `WM_CREATE`.
+  - Handle `WM_HOTKEY` messages in `WndProc` to trigger background scan workers asynchronously.
+  - Provide fallback combinations (`F9` or `Ctrl+Alt+S`) configurable through the settings file.
 
-### 2. Bulk Database Ingestion via PostgreSQL `COPY` with `FREEZE`
-- **Objective**: Optimize batch loading of millions of fingerprint rows into the PostgreSQL covering index.
-- **Key Focus**:
-  - Stream parsed landmarks directly into PostgreSQL using binary or text format `COPY fingerprints FROM STDIN`.
-  - Use `COPY ... WITH (FREEZE)` on initial catalog creation so tuples are committed directly as pre-frozen, bypassing transaction visibility overhead and updating the Visibility Map without requiring a separate immediate vacuum pass.
-  - Drop covering index before initial multi-million row loading and rebuild concurrently post-load.
+### 2.2 System Tray Daemon & Background Minimization
+- **Objective**: Allow HearThis to run unobtrusively in the background without occupying a taskbar slot.
+- **Implementation Strategy**:
+  - Add tray icon support using `Shell_NotifyIconW(NIM_ADD, &nid)` with custom `.ico` mipmaps from `assets/hearthis.ico`.
+  - Intercept `WM_SYSCOMMAND` with `SC_MINIMIZE` or `SC_CLOSE` to hide the main window (`ShowWindow(hwnd, SW_HIDE)`).
+  - Add a context menu with `Identify Now`, `Open Window`, and `Exit` items on right-click.
 
-### 3. Background System Tray Daemon with Global Hotkey
-- **Status**: Completed in [`client/tray_app.py`](file:///c:/Users/aadit/Desktop/song-detector/client/tray_app.py).
-- **Features Delivered**:
-  - Non-intrusive Windows system tray icon with left-click immediate capture.
-  - Multi-hotkey hardware listener (`Ctrl+Shift+S`, `Ctrl+Alt+S`, `F9`, `F8`) resilient against OEM hotkey locks (HP System Information / OMEN Hub).
-  - Native Windows Toast notifications and real-time terminal telemetry.
-  - Keep-alive audio playback preventing WASAPI stream sleep.
+### 2.3 Windows Native Toast Notifications
+- **Objective**: Display recognition results as native Windows 10/11 desktop notifications when running minimized.
+- **Implementation Strategy**:
+  - Leverage native balloon tips via `NIF_INFO` in `NOTIFYICONDATAW` for lightweight notification without external runtimes:
+    ```cpp
+    nid.uFlags |= NIF_INFO;
+    wcscpy_s(nid.szInfoTitle, L"Song Identified");
+    swprintf_s(nid.szInfo, L"%s - %s", songTitle, artistName);
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
+    ```
 
-### 4. Recognition History & Web Dashboard / Exporter
-- **Objective**: Maintain a persistent audit trail of recognized tracks.
-- **Key Focus**:
-  - Save matched tracks with timestamps, confidence scores, and album metadata to a local `history.db` SQLite store.
-  - Provide a `/history` API endpoint and export to CSV or Spotify/YouTube Music search links.
+### 2.4 Local History Store via Embedded SQLite
+- **Objective**: Maintain a persistent history of recognized tracks with timestamps, album art links, and confidence scores.
+- **Implementation Strategy**:
+  - Integrate public domain `sqlite3.c` single-file amalgamation directly into the CMake build without external DLL dependencies.
+  - Store history at `%APPDATA%/SongDetector/history.db`.
+  - Add a "History" view or export option (CSV / JSON) in the desktop interface.
+
+### 2.5 Offline Fingerprint Matching Engine
+- **Objective**: Allow offline recognition against a user's local music collection when no internet connection is available.
+- **Implementation Strategy**:
+  - Implement a pure C++17 landmark extraction algorithm using a compact KissFFT or custom Cooley-Tukey FFT.
+  - Store landmark hashes `(hash INT, song_id INT, offset INT)` in the local SQLite database.
+  - Evaluate histogram time-offset alignment for matches before dispatching cloud fallback requests.
