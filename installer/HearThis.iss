@@ -1,6 +1,8 @@
 ; Inno Setup Script for HearThis
 #define MyAppName "HearThis"
-#define MyAppVersion "1.0.1"
+#ifndef MyAppVersion
+#define MyAppVersion "1.0.2"
+#endif
 #define MyAppPublisher "HearThis Team"
 #define MyAppURL "https://github.com/aadit/song-detector"
 #define MyAppExeName "HearThis.exe"

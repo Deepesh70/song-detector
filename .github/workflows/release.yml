@@ -50,7 +50,7 @@ jobs:
 
     - name: Build Windows Setup Installer with Inno Setup
       run: |
-        iscc installer/HearThis.iss
+        iscc /DMyAppVersion=${{ github.event.inputs.tag_name || github.ref_name }} installer/HearThis.iss
 
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
