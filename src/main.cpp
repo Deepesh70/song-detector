@@ -51,6 +51,8 @@ HWND g_hwnd_btn_get_creds = nullptr;
 HWND g_hwnd_status = nullptr;
 HWND g_hwnd_song_title = nullptr;
 HWND g_hwnd_song_artist = nullptr;
+HWND g_hwnd_card_header = nullptr;
+HWND g_hwnd_subtitle = nullptr;
 
 // ACRCloud Control Handles
 HWND g_hwnd_lbl_acr_host = nullptr;
@@ -67,7 +69,12 @@ HWND g_hwnd_edit_audd_token = nullptr;
 HFONT g_font_regular = nullptr;
 HFONT g_font_title = nullptr;
 HFONT g_font_bold = nullptr;
+
 HBRUSH g_bg_brush = nullptr;
+HBRUSH g_input_brush = nullptr;
+HBRUSH g_card_brush = nullptr;
+HPEN g_border_pen = nullptr;
+COLORREF g_status_color = RGB(156, 163, 175);
 
 std::string g_current_youtube_url = "";
 
@@ -201,11 +208,14 @@ void run_recognition_worker(HWND hwnd, AppSettings settings) {
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE: {
-        g_bg_brush = CreateSolidBrush(RGB(24, 24, 28));
+        g_bg_brush = CreateSolidBrush(RGB(20, 21, 25));
+        g_input_brush = CreateSolidBrush(RGB(32, 34, 42));
+        g_card_brush = CreateSolidBrush(RGB(28, 30, 36));
+        g_border_pen = CreatePen(PS_SOLID, 1, RGB(48, 52, 64));
 
         g_font_title = CreateFontA(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
                                   CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        g_font_bold = CreateFontA(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
+        g_font_bold = CreateFontA(14, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
                                  CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
         g_font_regular = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
                                     CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
@@ -222,64 +232,64 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SendMessage(hIconCtrl, STM_SETICON, reinterpret_cast<WPARAM>(hLogo), 0);
 
             HWND hTitle = CreateWindowA("STATIC", "HearThis", WS_VISIBLE | WS_CHILD,
-                                        70, 14, 200, 26, hwnd, nullptr, nullptr, nullptr);
+                                        70, 14, 200, 24, hwnd, nullptr, nullptr, nullptr);
             SendMessage(hTitle, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_title), TRUE);
 
-            HWND hSub = CreateWindowA("STATIC", "Identify songs playing through your speakers.", WS_VISIBLE | WS_CHILD,
-                                      70, 42, 400, 18, hwnd, nullptr, nullptr, nullptr);
-            SendMessage(hSub, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
+            g_hwnd_subtitle = CreateWindowA("STATIC", "Identify songs playing through your speakers.", WS_VISIBLE | WS_CHILD,
+                                            70, 40, 400, 16, hwnd, nullptr, nullptr, nullptr);
+            SendMessage(g_hwnd_subtitle, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
         } else {
-            HWND hTitle = CreateWindowA("STATIC", "HearThis", WS_VISIBLE | WS_CHILD, 28, 16, 200, 26, hwnd, nullptr, nullptr, nullptr);
+            HWND hTitle = CreateWindowA("STATIC", "HearThis", WS_VISIBLE | WS_CHILD, 28, 16, 200, 24, hwnd, nullptr, nullptr, nullptr);
             SendMessage(hTitle, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_title), TRUE);
 
-            HWND hSub = CreateWindowA("STATIC", "Identify songs playing through your speakers.", WS_VISIBLE | WS_CHILD,
-                                      28, 44, 440, 18, hwnd, nullptr, nullptr, nullptr);
-            SendMessage(hSub, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
+            g_hwnd_subtitle = CreateWindowA("STATIC", "Identify songs playing through your speakers.", WS_VISIBLE | WS_CHILD,
+                                            28, 40, 440, 16, hwnd, nullptr, nullptr, nullptr);
+            SendMessage(g_hwnd_subtitle, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
         }
 
         // Provider Selector Row
-        HWND hLblProv = CreateWindowA("STATIC", "Music Provider:", WS_VISIBLE | WS_CHILD, 28, 72, 120, 18, hwnd, nullptr, nullptr, nullptr);
+        HWND hLblProv = CreateWindowA("STATIC", "Music Provider:", WS_VISIBLE | WS_CHILD, 28, 72, 120, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(hLblProv, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_bold), TRUE);
 
         g_hwnd_provider = CreateWindowA("COMBOBOX", "", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | WS_VSCROLL,
-                                       28, 94, 280, 120, hwnd, reinterpret_cast<HMENU>(IDC_COMBO_PROVIDER), nullptr, nullptr);
+                                       28, 92, 280, 120, hwnd, reinterpret_cast<HMENU>(IDC_COMBO_PROVIDER), nullptr, nullptr);
         SendMessage(g_hwnd_provider, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
         SendMessage(g_hwnd_provider, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("ACRCloud (Default Provider)"));
         SendMessage(g_hwnd_provider, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("AudD (Secondary Choice)"));
 
         // Helper Portal Link Button
-        g_hwnd_btn_get_creds = CreateWindowA("BUTTON", "Get ACRCloud Keys", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-                                            320, 93, 148, 26, hwnd, reinterpret_cast<HMENU>(IDC_BTN_GET_CREDS), nullptr, nullptr);
+        g_hwnd_btn_get_creds = CreateWindowA("BUTTON", "Get ACRCloud Keys", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW,
+                                             320, 91, 148, 26, hwnd, reinterpret_cast<HMENU>(IDC_BTN_GET_CREDS), nullptr, nullptr);
         SendMessage(g_hwnd_btn_get_creds, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         // --- ACRCloud Inputs (3 Keys) ---
-        g_hwnd_lbl_acr_host = CreateWindowA("STATIC", "ACRCloud Host:", WS_VISIBLE | WS_CHILD, 28, 130, 140, 18, hwnd, nullptr, nullptr, nullptr);
+        g_hwnd_lbl_acr_host = CreateWindowA("STATIC", "ACRCloud Host:", WS_VISIBLE | WS_CHILD, 28, 128, 140, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(g_hwnd_lbl_acr_host, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         g_hwnd_edit_acr_host = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_VISIBLE | WS_CHILD | ES_AUTOHSCROLL,
-                                              28, 150, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_ACR_HOST), nullptr, nullptr);
+                                               28, 146, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_ACR_HOST), nullptr, nullptr);
         SendMessage(g_hwnd_edit_acr_host, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
-        g_hwnd_lbl_acr_key = CreateWindowA("STATIC", "ACRCloud Access Key:", WS_VISIBLE | WS_CHILD, 28, 180, 160, 18, hwnd, nullptr, nullptr, nullptr);
+        g_hwnd_lbl_acr_key = CreateWindowA("STATIC", "ACRCloud Access Key:", WS_VISIBLE | WS_CHILD, 28, 178, 160, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(g_hwnd_lbl_acr_key, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         g_hwnd_edit_acr_key = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_VISIBLE | WS_CHILD | ES_AUTOHSCROLL,
-                                             28, 200, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_ACR_KEY), nullptr, nullptr);
+                                              28, 196, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_ACR_KEY), nullptr, nullptr);
         SendMessage(g_hwnd_edit_acr_key, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
-        g_hwnd_lbl_acr_secret = CreateWindowA("STATIC", "ACRCloud Access Secret:", WS_VISIBLE | WS_CHILD, 28, 230, 180, 18, hwnd, nullptr, nullptr, nullptr);
+        g_hwnd_lbl_acr_secret = CreateWindowA("STATIC", "ACRCloud Access Secret:", WS_VISIBLE | WS_CHILD, 28, 228, 180, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(g_hwnd_lbl_acr_secret, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         g_hwnd_edit_acr_secret = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_VISIBLE | WS_CHILD | ES_AUTOHSCROLL | ES_PASSWORD,
-                                                28, 250, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_ACR_SECRET), nullptr, nullptr);
+                                                 28, 246, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_ACR_SECRET), nullptr, nullptr);
         SendMessage(g_hwnd_edit_acr_secret, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         // --- AudD Input (Single Token) ---
-        g_hwnd_lbl_audd_token = CreateWindowA("STATIC", "AudD API Token:", WS_CHILD, 28, 130, 140, 18, hwnd, nullptr, nullptr, nullptr);
+        g_hwnd_lbl_audd_token = CreateWindowA("STATIC", "AudD API Token:", WS_CHILD, 28, 128, 140, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(g_hwnd_lbl_audd_token, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         g_hwnd_edit_audd_token = CreateWindowExA(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | ES_AUTOHSCROLL | ES_PASSWORD,
-                                                28, 150, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_AUDD_TOKEN), nullptr, nullptr);
+                                                 28, 146, 440, 24, hwnd, reinterpret_cast<HMENU>(IDC_EDIT_AUDD_TOKEN), nullptr, nullptr);
         SendMessage(g_hwnd_edit_audd_token, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         // Load saved settings
@@ -292,11 +302,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         update_provider_visibility(saved.provider_index);
 
         // Duration Selector Row
-        HWND hLblDur = CreateWindowA("STATIC", "Scan Duration:", WS_VISIBLE | WS_CHILD, 28, 282, 120, 18, hwnd, nullptr, nullptr, nullptr);
+        HWND hLblDur = CreateWindowA("STATIC", "Scan Duration:", WS_VISIBLE | WS_CHILD, 28, 280, 120, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(hLblDur, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_bold), TRUE);
 
         g_hwnd_duration = CreateWindowA("COMBOBOX", "", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | WS_VSCROLL,
-                                        28, 304, 440, 100, hwnd, reinterpret_cast<HMENU>(IDC_COMBO_DURATION), nullptr, nullptr);
+                                        28, 300, 440, 100, hwnd, reinterpret_cast<HMENU>(IDC_COMBO_DURATION), nullptr, nullptr);
         SendMessage(g_hwnd_duration, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
         SendMessage(g_hwnd_duration, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("10 Seconds (Recommended - Best Match)"));
         SendMessage(g_hwnd_duration, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>("5 Seconds (Fast Scan)"));
@@ -305,39 +315,153 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         SendMessage(g_hwnd_duration, CB_SETCURSEL, dur_idx, 0);
 
         // Identify Button
-        g_hwnd_btn_identify = CreateWindowA("BUTTON", "Identify Music Now", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
-                                            28, 342, 440, 38, hwnd, reinterpret_cast<HMENU>(IDC_BTN_IDENTIFY), nullptr, nullptr);
+        g_hwnd_btn_identify = CreateWindowA("BUTTON", "Identify Music Now", WS_VISIBLE | WS_CHILD | BS_OWNERDRAW,
+                                            28, 340, 440, 36, hwnd, reinterpret_cast<HMENU>(IDC_BTN_IDENTIFY), nullptr, nullptr);
         SendMessage(g_hwnd_btn_identify, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_bold), TRUE);
 
         // Status Label
         g_hwnd_status = CreateWindowA("STATIC", "Ready. Click Identify Music Now to scan audio.",
-                                      WS_VISIBLE | WS_CHILD | SS_CENTER, 28, 388, 440, 20, hwnd, nullptr, nullptr, nullptr);
+                                      WS_VISIBLE | WS_CHILD | SS_CENTER, 28, 384, 440, 18, hwnd, nullptr, nullptr, nullptr);
         SendMessage(g_hwnd_status, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
-        // Result Container
-        HWND hGroup = CreateWindowA("BUTTON", "Identified Track", WS_VISIBLE | WS_CHILD | BS_GROUPBOX,
-                                    28, 412, 440, 116, hwnd, nullptr, nullptr, nullptr);
-        SendMessage(hGroup, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_bold), TRUE);
+        // Result Card Elements (Painted on top of card background)
+        g_hwnd_card_header = CreateWindowA("STATIC", "Identified Track", WS_VISIBLE | WS_CHILD,
+                                           44, 422, 200, 16, hwnd, nullptr, nullptr, nullptr);
+        SendMessage(g_hwnd_card_header, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_bold), TRUE);
 
-        g_hwnd_song_title = CreateWindowA("STATIC", "Title: -", WS_VISIBLE | WS_CHILD,
-                                         44, 438, 400, 18, hwnd, nullptr, nullptr, nullptr);
+        g_hwnd_song_title = CreateWindowA("STATIC", "Title:  -", WS_VISIBLE | WS_CHILD,
+                                          44, 444, 400, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(g_hwnd_song_title, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_bold), TRUE);
 
         g_hwnd_song_artist = CreateWindowA("STATIC", "Artist: -", WS_VISIBLE | WS_CHILD,
-                                          44, 462, 400, 18, hwnd, nullptr, nullptr, nullptr);
+                                           44, 466, 400, 16, hwnd, nullptr, nullptr, nullptr);
         SendMessage(g_hwnd_song_artist, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
-        g_hwnd_btn_browser = CreateWindowA("BUTTON", "Search on Web", WS_VISIBLE | WS_CHILD | WS_DISABLED | BS_PUSHBUTTON,
-                                           44, 490, 130, 26, hwnd, reinterpret_cast<HMENU>(IDC_BTN_BROWSER), nullptr, nullptr);
+        g_hwnd_btn_browser = CreateWindowA("BUTTON", "Search on Web", WS_VISIBLE | WS_CHILD | WS_DISABLED | BS_OWNERDRAW,
+                                           44, 490, 128, 24, hwnd, reinterpret_cast<HMENU>(IDC_BTN_BROWSER), nullptr, nullptr);
         SendMessage(g_hwnd_btn_browser, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
 
         break;
     }
 
+    case WM_PAINT: {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+
+        // Soft result card container
+        RECT rcCard = { 28, 410, 468, 526 };
+        HGDIOBJ oldBrush = SelectObject(hdc, g_card_brush);
+        HGDIOBJ oldPen = SelectObject(hdc, g_border_pen);
+        RoundRect(hdc, rcCard.left, rcCard.top, rcCard.right, rcCard.bottom, 8, 8);
+        SelectObject(hdc, oldBrush);
+        SelectObject(hdc, oldPen);
+
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+
+    case WM_DRAWITEM: {
+        auto* pDraw = reinterpret_cast<DRAWITEMSTRUCT*>(lParam);
+        if (!pDraw) break;
+
+        if (pDraw->CtlID == IDC_BTN_IDENTIFY) {
+            bool disabled = (pDraw->itemState & ODS_DISABLED);
+            bool selected = (pDraw->itemState & ODS_SELECTED);
+
+            HBRUSH btnBrush = disabled ? CreateSolidBrush(RGB(38, 40, 48)) :
+                              selected ? CreateSolidBrush(RGB(13, 148, 100)) :
+                                         CreateSolidBrush(RGB(16, 185, 129));
+            HPEN btnPen = CreatePen(PS_SOLID, 1, disabled ? RGB(48, 50, 60) : RGB(16, 185, 129));
+
+            HGDIOBJ oldBrush = SelectObject(pDraw->hDC, btnBrush);
+            HGDIOBJ oldPen = SelectObject(pDraw->hDC, btnPen);
+            RoundRect(pDraw->hDC, pDraw->rcItem.left, pDraw->rcItem.top, pDraw->rcItem.right, pDraw->rcItem.bottom, 8, 8);
+
+            SetBkMode(pDraw->hDC, TRANSPARENT);
+            SetTextColor(pDraw->hDC, disabled ? RGB(110, 115, 125) : RGB(255, 255, 255));
+            SelectObject(pDraw->hDC, g_font_bold);
+
+            char text[64] = {0};
+            GetWindowTextA(pDraw->hwndItem, text, sizeof(text));
+            DrawTextA(pDraw->hDC, text, -1, &pDraw->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            SelectObject(pDraw->hDC, oldBrush);
+            SelectObject(pDraw->hDC, oldPen);
+            DeleteObject(btnBrush);
+            DeleteObject(btnPen);
+            return TRUE;
+        } else if (pDraw->CtlID == IDC_BTN_GET_CREDS || pDraw->CtlID == IDC_BTN_BROWSER) {
+            bool disabled = (pDraw->itemState & ODS_DISABLED);
+            bool selected = (pDraw->itemState & ODS_SELECTED);
+
+            HBRUSH btnBrush = disabled ? CreateSolidBrush(RGB(28, 30, 36)) :
+                              selected ? CreateSolidBrush(RGB(48, 52, 64)) :
+                                         CreateSolidBrush(RGB(36, 38, 48));
+            HPEN btnPen = CreatePen(PS_SOLID, 1, disabled ? RGB(36, 38, 46) : RGB(56, 60, 74));
+
+            HGDIOBJ oldBrush = SelectObject(pDraw->hDC, btnBrush);
+            HGDIOBJ oldPen = SelectObject(pDraw->hDC, btnPen);
+            RoundRect(pDraw->hDC, pDraw->rcItem.left, pDraw->rcItem.top, pDraw->rcItem.right, pDraw->rcItem.bottom, 6, 6);
+
+            SetBkMode(pDraw->hDC, TRANSPARENT);
+            SetTextColor(pDraw->hDC, disabled ? RGB(90, 95, 105) : RGB(225, 228, 236));
+            SelectObject(pDraw->hDC, g_font_regular);
+
+            char text[64] = {0};
+            GetWindowTextA(pDraw->hwndItem, text, sizeof(text));
+            DrawTextA(pDraw->hDC, text, -1, &pDraw->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            SelectObject(pDraw->hDC, oldBrush);
+            SelectObject(pDraw->hDC, oldPen);
+            DeleteObject(btnBrush);
+            DeleteObject(btnPen);
+            return TRUE;
+        }
+        break;
+    }
+
+    case WM_CTLCOLOREDIT: {
+        HDC hdc = reinterpret_cast<HDC>(wParam);
+        SetTextColor(hdc, RGB(240, 243, 248));
+        SetBkColor(hdc, RGB(32, 34, 42));
+        return reinterpret_cast<LRESULT>(g_input_brush);
+    }
+
+    case WM_CTLCOLORLISTBOX: {
+        HDC hdc = reinterpret_cast<HDC>(wParam);
+        SetTextColor(hdc, RGB(240, 243, 248));
+        SetBkColor(hdc, RGB(32, 34, 42));
+        return reinterpret_cast<LRESULT>(g_input_brush);
+    }
+
     case WM_CTLCOLORSTATIC: {
         HDC hdc = reinterpret_cast<HDC>(wParam);
-        SetTextColor(hdc, RGB(243, 244, 246));
-        SetBkColor(hdc, RGB(24, 24, 28));
+        HWND hCtrl = reinterpret_cast<HWND>(lParam);
+
+        if (hCtrl == g_hwnd_song_title) {
+            SetTextColor(hdc, RGB(255, 255, 255));
+            SetBkColor(hdc, RGB(28, 30, 36));
+            return reinterpret_cast<LRESULT>(g_card_brush);
+        } else if (hCtrl == g_hwnd_song_artist) {
+            SetTextColor(hdc, RGB(180, 185, 195));
+            SetBkColor(hdc, RGB(28, 30, 36));
+            return reinterpret_cast<LRESULT>(g_card_brush);
+        } else if (hCtrl == g_hwnd_card_header) {
+            SetTextColor(hdc, RGB(16, 185, 129));
+            SetBkColor(hdc, RGB(28, 30, 36));
+            return reinterpret_cast<LRESULT>(g_card_brush);
+        } else if (hCtrl == g_hwnd_status) {
+            SetTextColor(hdc, g_status_color);
+            SetBkColor(hdc, RGB(20, 21, 25));
+            return reinterpret_cast<LRESULT>(g_bg_brush);
+        } else if (hCtrl == g_hwnd_subtitle) {
+            SetTextColor(hdc, RGB(140, 145, 155));
+            SetBkColor(hdc, RGB(20, 21, 25));
+            return reinterpret_cast<LRESULT>(g_bg_brush);
+        }
+
+        SetTextColor(hdc, RGB(215, 220, 230));
+        SetBkColor(hdc, RGB(20, 21, 25));
         return reinterpret_cast<LRESULT>(g_bg_brush);
     }
 
@@ -377,22 +501,31 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // Validation
             if (settings.provider_index == 0) {
                 if (settings.acr_host.empty() || settings.acr_key.empty() || settings.acr_secret.empty()) {
+                    g_status_color = RGB(248, 113, 113);
                     SetWindowTextA(g_hwnd_status, "Please fill in ACRCloud Host, Key, and Secret.");
+                    InvalidateRect(g_hwnd_status, nullptr, TRUE);
                     return 0;
                 }
             } else {
                 if (settings.audd_token.empty()) {
+                    g_status_color = RGB(248, 113, 113);
                     SetWindowTextA(g_hwnd_status, "Please enter your AudD API Token.");
+                    InvalidateRect(g_hwnd_status, nullptr, TRUE);
                     return 0;
                 }
             }
 
             EnableWindow(g_hwnd_btn_identify, FALSE);
             EnableWindow(g_hwnd_btn_browser, FALSE);
+            InvalidateRect(g_hwnd_btn_identify, nullptr, TRUE);
+            InvalidateRect(g_hwnd_btn_browser, nullptr, TRUE);
 
+            g_status_color = RGB(56, 189, 248);
             std::string status_msg = "Recording audio playback (" + std::to_string(settings.duration_seconds) + " seconds)...";
             SetWindowTextA(g_hwnd_status, status_msg.c_str());
-            SetWindowTextA(g_hwnd_song_title, "Title: -");
+            InvalidateRect(g_hwnd_status, nullptr, TRUE);
+
+            SetWindowTextA(g_hwnd_song_title, "Title:  -");
             SetWindowTextA(g_hwnd_song_artist, "Artist: -");
 
             std::thread(run_recognition_worker, hwnd, settings).detach();
@@ -403,11 +536,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_RECOGNITION_DONE: {
         auto* result = reinterpret_cast<hearthis::RecognitionResult*>(lParam);
         EnableWindow(g_hwnd_btn_identify, TRUE);
+        InvalidateRect(g_hwnd_btn_identify, nullptr, TRUE);
 
         if (!result->error_message.empty()) {
+            g_status_color = RGB(248, 113, 113);
             std::string err = "Notice: " + result->error_message;
             SetWindowTextA(g_hwnd_status, err.c_str());
         } else if (result->matched) {
+            g_status_color = RGB(52, 211, 153);
             std::string status_msg = "Matched via " + result->provider + "!";
             SetWindowTextA(g_hwnd_status, status_msg.c_str());
 
@@ -418,11 +554,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             g_current_youtube_url = result->youtube_url;
             EnableWindow(g_hwnd_btn_browser, TRUE);
+            InvalidateRect(g_hwnd_btn_browser, nullptr, TRUE);
         } else {
+            g_status_color = RGB(251, 146, 60);
             SetWindowTextA(g_hwnd_status, "No match found. Try again during a clear music section.");
             SetWindowTextA(g_hwnd_song_title, "Title:  No match found");
             SetWindowTextA(g_hwnd_song_artist, "Artist: -");
         }
+        InvalidateRect(g_hwnd_status, nullptr, TRUE);
 
         delete result;
         break;
@@ -430,6 +569,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
     case WM_DESTROY: {
         if (g_bg_brush) DeleteObject(g_bg_brush);
+        if (g_input_brush) DeleteObject(g_input_brush);
+        if (g_card_brush) DeleteObject(g_card_brush);
+        if (g_border_pen) DeleteObject(g_border_pen);
         if (g_font_title) DeleteObject(g_font_title);
         if (g_font_bold) DeleteObject(g_font_bold);
         if (g_font_regular) DeleteObject(g_font_regular);
@@ -463,7 +605,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = "HearThisNativeWindow";
-    wc.hbrBackground = CreateSolidBrush(RGB(24, 24, 28));
+    wc.hbrBackground = CreateSolidBrush(RGB(20, 21, 25));
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hIcon = hIcon;
     wc.hIconSm = hIcon;
@@ -473,7 +615,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     }
 
     int width = 512;
-    int height = 570;
+    int height = 585;
 
     int screen_w = GetSystemMetrics(SM_CXSCREEN);
     int screen_h = GetSystemMetrics(SM_CYSCREEN);
