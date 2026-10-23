@@ -76,6 +76,8 @@ song-detector/
 │   ├── preprocessor.py        # RMS silence gate and polyphase resampler
 │   ├── fingerprinter.py       # STFT, 5-band peak picker, and 32-bit bit packer
 │   ├── test_capture.py        # Interactive hardware diagnostic utility
+│   ├── notifier.py            # Windows native toast notifications
+│   ├── tray_app.py            # System tray daemon with global Ctrl+Alt+S hotkey
 │   └── agent.py               # Desktop recognition daemon (single or continuous)
 ├── backend/                   # Recognition service & database
 │   ├── app.py                 # FastAPI service and ACRCloud/AudD proxy

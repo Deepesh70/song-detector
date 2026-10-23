@@ -110,6 +110,27 @@ python client/agent.py --listen
 - When music plays, it captures, fingerprints, and identifies the track automatically.
 - Press `Ctrl + C` to stop.
 
+#### Option C: Windows System Tray Daemon with Global Hotkey
+Sits silently in the Windows system tray and identifies music whenever you press `Ctrl + Shift + S`, `F9`, or `F8`:
+
+```powershell
+python client/tray_app.py
+```
+- **Global Hotkeys**: Press `Ctrl + Shift + S`, `Ctrl + Alt + S`, `F9`, or `F8` from any application or game.
+- **Desktop Toast**: Automatically pops up a native Windows Toast notification displaying the song title, artist, and album.
+- **System Tray Icon**: Left-click to identify immediately; right-click for context menu.
+
+#### Option D: Full-Fledged Desktop Application (PyQt6 GUI)
+A full-featured dark-mode desktop application with live audio visualizer, history log, and direct API key settings:
+
+```powershell
+python client/gui_app.py
+```
+- **Identify Music Tab**: Interactive central trigger button, animated audio waveform visualizer, and "Now Playing" result card with direct links to Spotify and YouTube.
+- **History Tab**: Searchable, persistent SQLite audit log (`%APPDATA%/SongDetector/history.db`) recording all identified tracks with timestamps.
+- **Settings Tab**: Enter your personal AudD token or ACRCloud credentials directly to identify music with zero server infrastructure required.
+- **System Tray Docking**: Automatically docks in the Windows system tray on close.
+
 ---
 
 ## 5. Ingesting Your Own Music Library (Local Catalog)

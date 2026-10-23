@@ -1,5 +1,6 @@
-from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple
+from collections import defaultdict, OrderedDict
+import threading
+from typing import Any, Dict, List, Optional, Set, Tuple
 from pydantic import BaseModel
 
 MIN_PEAK_VOTES: int = 15
@@ -7,6 +8,39 @@ MIN_PROMINENCE_RATIO: float = 3.0
 NOISE_WINDOW_RADIUS: int = 10
 DUPLICATE_HASH_OVERLAP_THRESHOLD: float = 0.70
 MAX_QUERY_OCCURRENCES_PER_HASH: int = 3
+
+
+class QueryLRUCache:
+    """Thread-safe, memory-bounded LRU cache for recognition query fingerprint sets."""
+
+    def __init__(self, capacity: int = 1024):
+        self.capacity = capacity
+        self._cache: OrderedDict[Tuple[int, ...], Dict[str, Any]] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def get(self, hashes_key: Tuple[int, ...]) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            if hashes_key in self._cache:
+                self._cache.move_to_end(hashes_key)
+                return self._cache[hashes_key]
+            return None
+
+    def put(self, hashes_key: Tuple[int, ...], result: Dict[str, Any]) -> None:
+        with self._lock:
+            if hashes_key in self._cache:
+                self._cache.move_to_end(hashes_key)
+            self._cache[hashes_key] = result
+            if len(self._cache) > self.capacity:
+                self._cache.popitem(last=False)
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._cache)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._cache.clear()
+
 
 
 class MatchCandidate(BaseModel):

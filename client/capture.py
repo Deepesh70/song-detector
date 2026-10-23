@@ -57,8 +57,8 @@ class WasapiLoopbackCapture:
         if self._keepalive_thread and self._keepalive_thread.is_alive():
             self._keepalive_thread.join(timeout=0.2)
 
-    def capture_raw_buffer(self) -> np.ndarray:
-        """Record a 5-second buffer directly from the default speaker's loopback microphone.
+    def capture_raw_buffer(self, duration_seconds: Optional[float] = None) -> np.ndarray:
+        """Record a buffer directly from the default speaker's loopback microphone.
         
         Returns float32 array of shape [frames, channels].
         """
@@ -70,9 +70,11 @@ class WasapiLoopbackCapture:
                 raise RuntimeError("No WASAPI loopback audio device detected on this system")
             loopback_mic = loopbacks[0]
 
+        frames_to_record = int(self.sample_rate * (duration_seconds if duration_seconds is not None else self.capture_duration))
+
         # Record exact number of frames
         with loopback_mic.recorder(samplerate=self.sample_rate) as recorder:
-            raw_data = recorder.record(numframes=self.total_frames)
+            raw_data = recorder.record(numframes=frames_to_record)
 
         return raw_data.astype(np.float32)
 

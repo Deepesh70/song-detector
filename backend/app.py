@@ -38,7 +38,7 @@ import certifi
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
 from backend.db import DatabaseManager
-from backend.matcher import evaluate_matches
+from backend.matcher import evaluate_matches, QueryLRUCache
 from backend.fallback import FallbackManager
 
 app = FastAPI(title="Song Detector API", version="1.0.0")
@@ -62,6 +62,7 @@ def _init_redis():
 redis_client = _init_redis()
 fallback_manager = FallbackManager(redis_client=redis_client)
 db_manager = DatabaseManager()
+query_lru_cache = QueryLRUCache(capacity=1024)
 
 MAX_QUERY_HASHES: int = 800
 
@@ -84,6 +85,11 @@ def recognize(payload: QueryPayload):
         token = fallback_manager.create_fallback_token()
         return {"matched": False, "fallback_token": token}
 
+    cache_key = tuple(sorted(h for h, _ in payload.hashes[:128]))
+    cached_match = query_lru_cache.get(cache_key)
+    if cached_match is not None:
+        return cached_match
+
     unique_hashes = list({h for h, _ in payload.hashes})
 
     try:
@@ -102,7 +108,7 @@ def recognize(payload: QueryPayload):
     track_meta = db_manager.get_track_metadata(song_id)
     offset_sec = (result.candidate.peak_offset_frame * 256) / 11025.0
 
-    return {
+    response_data = {
         "matched": True,
         "track": {
             "id": song_id,
@@ -117,6 +123,8 @@ def recognize(payload: QueryPayload):
         },
         "duplicates": result.duplicate_song_ids,
     }
+    query_lru_cache.put(cache_key, response_data)
+    return response_data
 
 
 def generate_acrcloud_signature(

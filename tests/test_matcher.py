@@ -62,3 +62,29 @@ def test_duplicate_track_overlap_detection():
     assert result.candidate is not None
     assert result.candidate.song_id == 10
     assert 20 in result.duplicate_song_ids
+
+
+def test_query_lru_cache():
+    """Verify thread-safe bounded LRU eviction and cache hits."""
+    from backend.matcher import QueryLRUCache
+
+    cache = QueryLRUCache(capacity=2)
+    k1 = (1, 2)
+    k2 = (3, 4)
+    k3 = (5, 6)
+
+    cache.put(k1, {"matched": True, "id": 1})
+    cache.put(k2, {"matched": True, "id": 2})
+    assert len(cache) == 2
+    assert cache.get(k1)["id"] == 1
+
+    # Insert k3: should evict k2 since k1 was accessed most recently
+    cache.put(k3, {"matched": True, "id": 3})
+    assert len(cache) == 2
+    assert cache.get(k2) is None
+    assert cache.get(k1)["id"] == 1
+    assert cache.get(k3)["id"] == 3
+
+    cache.clear()
+    assert len(cache) == 0
+

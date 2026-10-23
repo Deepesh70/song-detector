@@ -34,10 +34,26 @@ song-detector/
 │   ├── future-implementations.md # Current status and future optimization roadmap
 │   └── run-guide.md           # Step-by-step operator and execution guide
 ├── client/                    # Desktop capture and client-side processing
+│   ├── gui_app.py             # Desktop GUI launcher entrypoint
+│   ├── gui/                   # Modular desktop GUI architecture
+│   │   ├── styles.py          # WCAG AA dark theme QSS tokens
+│   │   ├── visualizer.py      # Audio spectrum activity visualizer widget
+│   │   ├── worker.py          # Non-blocking WASAPI recognition QThread worker
+│   │   ├── tabs/              # Decomposed tab view components
+│   │   │   ├── identify_tab.py# Hero trigger, visualizer, matched result card
+│   │   │   ├── history_tab.py # SQLite table, live search, quick actions & Win32 copy
+│   │   │   └── settings_tab.py# Provider selector & credential management
+│   │   └── main_window.py     # Main window coordinator, tray icon, and global hotkeys
+│   ├── config.py              # Local JSON configuration manager (%APPDATA%/SongDetector)
+│   ├── history_store.py       # Local SQLite history database (recognition_history)
+│   ├── direct_recognizer.py   # Direct client-side AudD & ACRCloud API recognition engine
 │   ├── capture.py             # WASAPI loopback recording with silence keep-alive
 │   ├── preprocessor.py        # RMS silence gate and polyphase resampler (48kHz -> 11,025Hz)
 │   ├── fingerprinter.py       # STFT, 5-band peak picker, and full 32-bit hash encoder
-│   └── agent.py               # Desktop daemon / hotkey dispatcher and fallback uploader
+│   ├── test_capture.py        # Interactive hardware diagnostic utility
+│   ├── notifier.py            # Windows 10/11 native toast notifications
+│   ├── tray_app.py            # System tray daemon with global Ctrl+Shift+S / F9 hotkeys
+│   └── agent.py               # CLI runner / hotkey dispatcher and fallback uploader
 ├── backend/                   # Recognition service and database integration
 │   ├── app.py                 # FastAPI application and endpoint routing
 │   ├── db.py                  # PostgreSQL pool and covering index lateral query executor
