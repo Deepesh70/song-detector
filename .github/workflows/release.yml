@@ -43,10 +43,11 @@ jobs:
       run: |
         pyinstaller HearThis.spec --noconfirm --clean
 
-    - name: Create Release Zip Archive
+    - name: Create Portable Zip Archive
       shell: pwsh
       run: |
-        Compress-Archive -Path dist\HearThis.exe -DestinationPath dist\HearThis-windows-x64.zip -Force
+        $TAG = "${{ github.event.inputs.tag_name || github.ref_name }}"
+        Compress-Archive -Path dist\HearThis.exe -DestinationPath "dist\HearThis-$TAG-portable.zip" -Force
 
     - name: Build Windows Setup Installer with Inno Setup
       run: |
@@ -62,7 +63,6 @@ jobs:
         generate_release_notes: true
         files: |
           dist/HearThis-Setup-*.exe
-          dist/HearThis.exe
-          dist/HearThis-windows-x64.zip
+          dist/*-portable.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,13 +1,22 @@
-# Song Detector 🎵
+# HearThis 🎵
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI Status](https://img.shields.io/badge/tests-18%20passed-brightgreen.svg)]()
+[![CI Status](https://img.shields.io/badge/tests-24%20passed-brightgreen.svg)]()
 [![Code Style](https://img.shields.io/badge/code%20style-typed-black.svg)]()
 
-A production-grade system audio recognition service modeled after Shazam's acoustic landmark fingerprinting algorithm ([Wang, 2003](https://www.ee.columbia.edu/~dpwe/papers/Wang03-shazam.pdf)). 
+HearThis is a production-grade system audio recognition desktop application modeled after Shazam's acoustic landmark fingerprinting algorithm ([Wang, 2003](https://www.ee.columbia.edu/~dpwe/papers/Wang03-shazam.pdf)). 
 
-Song Detector captures audio directly from Windows application playback via **WASAPI loopback** (Spotify, YouTube, games, browsers) without microphone bleed, extracts noise-resilient time-frequency constellation landmarks, performs sub-second matching against an indexed covering table, and provides an authenticated two-step fallback proxy to commercial providers (ACRCloud / AudD).
+HearThis captures audio directly from Windows application playback via **WASAPI loopback** (Spotify, YouTube, games, browsers) without microphone bleed, extracts noise-resilient time-frequency constellation landmarks, performs sub-second matching against an indexed covering table, and provides direct client recognition through commercial providers (AudD / ACRCloud).
+
+---
+
+## 💾 Download for Windows
+
+Get the latest release directly from **[GitHub Releases](https://github.com/aadit/song-detector/releases/latest)**:
+
+- **Installer (Recommended)**: `HearThis-Setup-v1.0.X.exe` — Standard Windows setup wizard with Desktop shortcuts, Start Menu entry, and uninstaller.
+- **Portable**: `HearThis-v1.0.X-portable.zip` — Standalone portable build. Extract and double-click `HearThis.exe` without installation.
 
 ---
 
