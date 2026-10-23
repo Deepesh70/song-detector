@@ -3,14 +3,18 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
+# C / C++ build outputs
+*.obj
+*.lib
+*.pdb
+*.ilk
+*.exe
+build/
+dist/
 
 # Distribution / packaging
 .Python
-build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
@@ -37,29 +41,16 @@ ENV/
 .env.*.local
 *.pem
 *.key
+token.txt
+native_config.txt
 
 # IDEs and OS
 .vscode/
 .idea/
+.vs/
 *.swp
 *.swo
 *~
 Thumbs.db
 Desktop.ini
 .DS_Store
-
-# Testing and coverage
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Local audio caches and databases
-*.wav
-*.mp3
-*.flac
-*.ogg
-*.opus
-data/
-catalog/
-*.sqlite3
-*.db

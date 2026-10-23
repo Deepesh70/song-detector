@@ -1,13 +1,23 @@
-# Song Detector 🎵
+# HearThis 🎵
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B17)
+[![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6.svg)]()
+[![Binary Size](https://img.shields.io/badge/executable-325%20KB-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI Status](https://img.shields.io/badge/tests-18%20passed-brightgreen.svg)]()
-[![Code Style](https://img.shields.io/badge/code%20style-typed-black.svg)]()
+[![CI Status](https://img.shields.io/badge/tests-passing-brightgreen.svg)]()
 
-A production-grade system audio recognition service modeled after Shazam's acoustic landmark fingerprinting algorithm ([Wang, 2003](https://www.ee.columbia.edu/~dpwe/papers/Wang03-shazam.pdf)). 
+HearThis is a lightweight, high-performance native Windows desktop audio recognition application written in modern C++17.
 
-Song Detector captures audio directly from Windows application playback via **WASAPI loopback** (Spotify, YouTube, games, browsers) without microphone bleed, extracts noise-resilient time-frequency constellation landmarks, performs sub-second matching against an indexed covering table, and provides an authenticated two-step fallback proxy to commercial providers (ACRCloud / AudD).
+HearThis captures system audio directly from Windows playback via **WASAPI loopback** (Spotify, YouTube, games, browsers) without microphone bleed, gates silence, packages standard linear PCM WAV in memory, and identifies tracks via direct cloud API providers (**ACRCloud** and **AudD**) with sub-second response times.
+
+---
+
+## 💾 Download for Windows
+
+Get the latest release directly from **[GitHub Releases](https://github.com/aadit/song-detector/releases/latest)**:
+
+- **Installer**: `HearThis-Setup-v1.1.X.exe` — Ultra-light (~200 KB) Windows setup wizard with Desktop shortcuts and Start Menu entry.
+- **Portable**: `HearThis-v1.1.X-portable.zip` — Standalone portable build (~325 KB). Extract and double-click `HearThis.exe` without installation.
 
 ---
 
@@ -15,48 +25,35 @@ Song Detector captures audio directly from Windows application playback via **WA
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Windows Desktop Client"]
-        A["WASAPI Loopback Capture (48kHz Float32 Stereo)"] --> B["Active Clock Keep-Alive (Zero-Volume Stream)"]
-        A --> C["Mono Downmix + RMS Silence Gate (Reject < -50 dBFS)"]
-        C -->|"Pass"| D["Polyphase Anti-Aliasing Resampler -> 11,025 Hz"]
-        D --> E["5-Second Ring Buffer (55,125 samples)"]
-        E --> F["STFT (H=256, Nfft=2048) + Dynamic Floor (-45 dB)"]
-        F --> G["5-Band 2D Local Maxima + Top-5 Amplitude Pairing"]
-        G --> H["Extract Pairs: [[signed_hash, t_query], ...] (Max 800)"]
+    subgraph NativeApp ["HearThis Native Windows Application (C++17)"]
+        A["WASAPI Loopback Capture (48kHz Stereo Float)"] --> B["Active Render Keep-Alive"]
+        A --> C["Stereo-to-Mono Downmix + RMS Silence Gate (-50 dBFS)"]
+        C -->|"Pass"| D["In-Memory Standard 44-Byte RIFF WAV Serialization"]
+        D --> E{"Selected Provider"}
     end
 
-    subgraph Step1 ["Step 1: Local Inverted Index Matching"]
-        H -->|"POST /v1/recognize [[hash, t_query], ...]"| I["FastAPI Gateway"]
-        I --> J["SQL: unnest($1) CROSS JOIN LATERAL (LIMIT 1000)"]
-        J --> K[("PostgreSQL Covering Index / SQLite Index")]
-        K --> L["Sliding Window Histogram: H[t-1] + H[t] + H[t+1]"]
-        L --> M{"V1 >= 15 AND V1/V_noise >= 3.0?"}
-        M -->|"Yes"| N["Return Local Track Metadata (< 50ms)"]
+    subgraph Providers ["Direct Cloud Providers"]
+        E -->|"ACRCloud (Default)"| F["Native BCrypt HMAC-SHA1 + WinHTTP -> /v1/identify"]
+        E -->|"AudD (Secondary)"| G["Multipart WinHTTP POST -> https://api.audd.io/"]
+        F --> H["JSON Song Metadata & Web Search"]
+        G --> H
     end
 
-    subgraph Step2 ["Step 2: Two-Step Audio Fallback"]
-        M -->|"No"| O["Generate Single-Use JWT (jti) in Redis"]
-        O --> P["Return 404 + Signed Token"]
-        P --> Q["Client Encodes Buffer -> 110 KB WAV"]
-        Q -->|"POST /v1/recognize/fallback + Token"| R["Gateway: Redis GETDEL fallback_nonce:<jti>"]
-        R -->|"Valid Token"| S["Proxy to ACRCloud / AudD (100M+ Songs)"]
-        R -->|"Invalid / Replayed"| T["401 Unauthorized"]
-        S --> U["Return Commercial Track Metadata + Spotify Link"]
-    end
+    H --> I["Dark-Themed Win32 UI Window (Segoe UI) + Browser Action"]
 ```
 
 ---
 
 ## ✨ Engineering Highlights
 
-- **Lossless System Capture**: Interfaces directly with Windows Audio Session API (`WASAPI`) in loopback mode with a zero-volume render keep-alive to prevent thread stalling during silence.
-- **Strict Anti-Aliasing**: Evaluates a Kaiser-windowed polyphase sinc filter resampling native $48\text{ kHz}$ to canonical $11,025\text{ Hz}$ mono, providing over $52\text{ dB}$ stopband attenuation above $5\text{ kHz}$.
-- **Acoustic Invariance**: Amplitude is excluded from the 32-bit hash key, guaranteeing invariance against volume normalizers, bass boost, and lossy 64 kbps MP3 compression.
-- **5 Logarithmic Frequency Bands**: Subdivides spectrum ($27\text{ Hz}\text{–}5000\text{ Hz}$) into 5 perceptual bands with 2D local maxima quotas, ensuring uniform feature density across basslines, vocals, and percussion.
-- **Boundary-Free Histogram Scoring**: Discards rigid floor division in favor of an unquantized integer histogram with a 3-frame sliding window sum ($\text{Score}(t) = H[t-1] + H[t] + H[t+1]$), absorbing fractional frame jitter.
-- **In-Track Prominence Evaluation**: Measures signal-to-noise ratio ($V_1 / V_{\text{noise}} \ge 3.0$) within the track's own timeline, eliminating duration bias and false-positive collisions.
-- **Dual-Backend Storage**: Automatically leverages PostgreSQL's B-Tree covering index (`INCLUDE (song_id, offset_frames)`) and `CROSS JOIN LATERAL` when available, falling back to a local zero-config SQLite index for standalone desktop execution.
-- **Replay-Protected Fallback Proxy**: Single-use JWT nonces are atomically deleted via Redis `GETDEL`, protecting commercial provider quotas while shielding paid API credentials from client binaries.
+- **Ultra-Small Binary**: The standalone executable is only **325 KB** (`334,336 bytes`), requiring zero Python, Qt, or external runtime installations.
+- **Zero Third-Party Dependencies**: Built entirely using native Windows system DLLs:
+  - Audio capture: Windows Audio Session API (`WASAPI` / `IAudioCaptureClient` COM).
+  - Secure transport: Windows HTTP Services (`winhttp.dll`).
+  - Cryptography: Windows Cryptography Next Generation (`bcrypt.dll` for HMAC-SHA1 and `crypt32.dll` for Base64).
+  - User interface: Native Win32 Desktop Window Manager with immersive dark mode (`dwmapi.dll`).
+- **Flexible Scan Duration**: Toggle between 10-second scans (recommended for maximum landmark match accuracy) and 5-second quick scans.
+- **Automatic Configuration Persistence**: Remembers your ACRCloud Host, Key, Secret, AudD Token, and scan duration across sessions in `%APPDATA%\SongDetector\native_config.txt`.
 
 ---
 
@@ -64,80 +61,49 @@ flowchart TD
 
 ```
 song-detector/
-├── .github/workflows/ci.yml   # Automated GitHub Actions test workflow
-├── docs/                      # Deep-dive technical specifications
-│   ├── run-guide.md           # Step-by-step operator and execution guide
-│   ├── architecture.md        # Complete system architecture and data flow
-│   ├── dsp-specification.md   # Mathematical equations and bit layouts
-│   ├── api-reference.md       # OpenAPI endpoints and payload schemas
-│   └── future-implementations.md # Scalability roadmap (Rust SIMD, COPY FREEZE)
-├── client/                    # Desktop loopback capture & DSP
-│   ├── capture.py             # WASAPI loopback recorder with silence keep-alive
-│   ├── preprocessor.py        # RMS silence gate and polyphase resampler
-│   ├── fingerprinter.py       # STFT, 5-band peak picker, and 32-bit bit packer
-│   ├── test_capture.py        # Interactive hardware diagnostic utility
-│   ├── notifier.py            # Windows native toast notifications
-│   ├── tray_app.py            # System tray daemon with global Ctrl+Alt+S hotkey
-│   └── agent.py               # Desktop recognition daemon (single or continuous)
-├── backend/                   # Recognition service & database
-│   ├── app.py                 # FastAPI service and ACRCloud/AudD proxy
-│   ├── db.py                  # Dual-engine PostgreSQL covering index / SQLite
-│   ├── matcher.py             # Sliding-window histogram and prominence evaluator
-│   └── fallback.py            # Redis atomic single-use token manager
-├── worker/                    # Catalog ingestion pipeline
-│   ├── ingest.py              # Directory scanner, hash pruner, and batch loader
-│   └── generate_demo_track.py # Polyphonic multi-band audio generator
-└── tests/                     # 18 automated unit and end-to-end tests
-    ├── test_bit_packing.py    # Bit layout, signed int32 conversions, boundaries
-    ├── test_dsp.py            # Magnitude floor, 2D local max, amplitude pairing
-    ├── test_matcher.py        # Sliding window, jitter absorption, prominence
-    ├── test_resampler.py      # Stopband attenuation and RMS gate checks
-    ├── test_fallback.py       # Token lifecycle and replay attack prevention
-    └── test_end_to_end.py     # End-to-end crop recognition & noise rejection
+├── CMakeLists.txt                         # Industry-standard build specification
+├── build.bat                              # One-click Visual Studio MSVC compilation runner
+├── include/                               # Public C++ header interfaces
+│   └── hearthis/
+│       ├── audio_processor.h              # Mono downmix, RMS silence gate, and WAV builder
+│       ├── wasapi_capture.h               # WASAPI loopback audio capture
+│       └── api_client.h                   # ACRCloud & AudD WinHTTP client + HMAC-SHA1
+├── src/                                   # Implementation source files
+│   ├── audio_processor.cpp                # Signal processing algorithms
+│   ├── wasapi_capture.cpp                 # Windows COM audio engine integration
+│   ├── api_client.cpp                     # Native WinHTTP HTTPS transport & crypto
+│   └── main.cpp                           # Dark-mode Win32 GUI entrypoint
+├── tests/                                 # Automated C++ unit test suites
+│   ├── test_processor.cpp                 # Audio processing tests
+│   ├── test_capture.cpp                   # WASAPI loopback capture tests
+│   └── test_api_client.cpp                # Cryptography & JSON parser tests
+├── installer/                             # Inno Setup Windows installer script
+│   └── HearThis.iss
+└── assets/                                # Multi-resolution icons (.ico, .png)
 ```
 
 ---
 
-## 🚀 Quickstart
+## 🛠 Building from Source
 
-### 1. Setup Environment
-```powershell
-conda create -n song-detector python=3.11 -y
-conda activate song-detector
-pip install -r requirements.txt
+### Prerequisites
+- Windows 10 or 11 (64-bit)
+- Visual Studio 2022 (with "Desktop development with C++" workload) or Build Tools for Visual Studio.
+
+### Method 1: Using `build.bat` (Fastest)
+Open any terminal and run:
+```cmd
+build.bat
 ```
+This compiles the unit tests, executes test suites, and outputs `HearThis.exe` in the root folder.
 
-### 2. Verify with Automated Tests
-```powershell
-pytest -v
+### Method 2: Using CMake
+```cmd
+cmake -B build
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
-
-### 3. Run Hardware Diagnostic
-Verify loopback capture directly from your speakers/headphones:
-```powershell
-python client/test_capture.py
-```
-
-### 4. Run Song Identification
-In **Terminal 1**, start the backend API:
-```powershell
-python -m backend.app
-```
-
-In **Terminal 2**, start playback on Spotify / YouTube and identify the track:
-```powershell
-python client/agent.py --once
-```
-
----
-
-## 📚 Technical Documentation
-
-- [Operator & Execution Guide](docs/run-guide.md): Complete setup and troubleshooting guide.
-- [System Architecture](docs/architecture.md): Threat model, data flow, and database design.
-- [DSP & Mathematical Specification](docs/dsp-specification.md): Equations, bit allocations, and proof of invariance.
-- [API Reference](docs/api-reference.md): Endpoints, JSON schemas, and response codes.
-- [Implementation Status & Future Roadmap](docs/future-implementations.md): Optimization blueprint.
+The compiled executable will be located at `build/Release/HearThis.exe`.
 
 ---
 

@@ -1,7 +1,7 @@
 ; Inno Setup Script for HearThis
 #define MyAppName "HearThis"
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.1.0"
 #endif
 #define MyAppPublisher "HearThis Team"
 #define MyAppURL "https://github.com/aadit/song-detector"
@@ -18,7 +18,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist
-OutputBaseFilename=HearThis-Setup-v{#MyAppVersion}
+OutputBaseFilename=HearThis-Setup-{#MyAppVersion}
 SetupIconFile=..\assets\icon.ico
 Compression=lzma2/max
 SolidCompression=yes
