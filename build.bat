@@ -31,8 +31,13 @@ if %ERRORLEVEL% NEQ 0 exit /b 1
 test_api_bin.exe
 if %ERRORLEVEL% NEQ 0 exit /b 1
 
-echo [4/4] Building Standalone Production Desktop Executable (HearThis.exe)...
-cl /nologo /O2 /EHsc /std:c++17 /I include src\audio_processor.cpp src\wasapi_capture.cpp src\api_client.cpp src\main.cpp user32.lib gdi32.lib dwmapi.lib comctl32.lib shell32.lib ole32.lib oleaut32.lib winhttp.lib bcrypt.lib crypt32.lib /Fe:HearThis.exe /link /SUBSYSTEM:WINDOWS
+echo [4/4] Building Standalone Production Desktop Executable (HearThis.exe with icon)...
+rc /nologo /i . /fo app.res src\resource.rc
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Failed to compile Windows resource file.
+    exit /b 1
+)
+cl /nologo /O2 /EHsc /std:c++17 /I include src\audio_processor.cpp src\wasapi_capture.cpp src\api_client.cpp src\main.cpp app.res user32.lib gdi32.lib dwmapi.lib comctl32.lib shell32.lib ole32.lib oleaut32.lib winhttp.lib bcrypt.lib crypt32.lib /Fe:HearThis.exe /link /SUBSYSTEM:WINDOWS
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to compile HearThis.exe
     exit /b 1
@@ -41,7 +46,7 @@ if %ERRORLEVEL% NEQ 0 (
 if not exist dist mkdir dist
 copy /y HearThis.exe dist\HearThis.exe >nul
 
-del /q *.obj test_*_bin.exe 2>nul
+del /q *.obj test_*_bin.exe app.res 2>nul
 
 echo.
 echo ===================================================

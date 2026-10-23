@@ -1,121 +1,157 @@
-# API Reference
+# Cloud API & Integration Reference
 
-## Base URL
-Development: `http://127.0.0.1:8000`
+HearThis communicates directly with commercial music recognition cloud providers over TLS without an intermediary backend server. This document details the request construction, cryptographic signature generation, and response parsing for each supported provider, as well as the local client configuration schema.
 
 ---
 
-## Endpoints
+## 1. ACRCloud Identify API (Default Provider)
 
-### 1. Identify Track via Local Landmark Hashes
+ACRCloud provides low-latency fingerprint matching against a catalog of over 100 million tracks. Requests require HMAC-SHA1 cryptographic signing generated with native Windows BCrypt APIs.
 
-Executes fast inverted-index lookup against the local catalog using client-extracted landmark hashes.
+- **Protocol**: HTTPS POST
+- **Host**: Configured by user (e.g., `identify-eu-west-1.acrcloud.com` or `identify-us-west-2.acrcloud.com`)
+- **Endpoint**: `/v1/identify`
+- **Content-Type**: `multipart/form-data; boundary=----HearThisBoundary<RandomToken>`
 
-- **Method**: `POST`
-- **Path**: `/v1/recognize`
-- **Content-Type**: `application/json`
+### Request Multipart Form Fields
 
-#### Request Body
+| Field Name | Type | Description |
+| :--- | :--- | :--- |
+| `sample` | Binary | 16-bit linear PCM WAV audio buffer (44-byte RIFF header included) |
+| `sample_bytes` | String | Decimal length of audio buffer in bytes (e.g. `960044` for 10s mono at 48 kHz) |
+| `access_key` | String | ACRCloud project Access Key |
+| `data_type` | String | Constant string: `audio` |
+| `signature_version` | String | Constant string: `1` |
+| `signature` | String | Base64-encoded HMAC-SHA1 cryptographic digest |
+| `timestamp` | String | Current Unix epoch timestamp in UTC seconds (e.g. `1774312891`) |
+
+### HMAC-SHA1 Signature Algorithm
+
+1. Formulate the canonical String-to-Sign with strict newline delimiters:
+   ```
+   POST\n/v1/identify\n<access_key>\naudio\n1\n<timestamp>
+   ```
+2. Compute the HMAC-SHA1 digest using the project's `access_secret` as the secret key:
+   - Evaluated via Windows `bcrypt.dll` (`BCRYPT_SHA1_ALGORITHM` with `BCRYPT_ALG_HANDLE_HMAC_FLAG`).
+3. Encode the resulting 20-byte binary digest into standard Base64:
+   - Evaluated via Windows `crypt32.dll` (`CryptBinaryToStringA`).
+
+### Expected Response Format (JSON)
+
+#### Successful Match (`status.code == 0`)
 ```json
 {
-  "hashes": [
-    [-142081920, 12],
-    [89102341, 15],
-    [210491029, 21]
-  ]
-}
-```
-- `hashes`: Array of tuples `[signed_int32, query_frame_offset]`. Maximum 800 items per request.
-
-#### Response: Match Found (200 OK)
-```json
-{
-  "matched": true,
-  "track": {
-    "id": 4821,
-    "title": "Bohemian Rhapsody",
-    "artist": "Queen",
-    "duration_seconds": 354,
-    "offset_seconds": 42.18
+  "status": {
+    "code": 0,
+    "msg": "Success",
+    "version": "1.0"
   },
-  "confidence": {
-    "peak_votes": 84,
-    "prominence_ratio": 9.33
+  "metadata": {
+    "music": [
+      {
+        "title": "Midnight City",
+        "artists": [
+          { "name": "M83" }
+        ],
+        "album": {
+          "name": "Hurry Up, We're Dreaming"
+        },
+        "external_metadata": {
+          "spotify": {
+            "track": { "id": "6GyFP1nfCDB8Jy62v8Aq4q" }
+          },
+          "youtube": {
+            "vid": "dX3k_QDnzHE"
+          }
+        }
+      }
+    ]
   }
 }
 ```
 
-#### Response: Local Miss with Fallback Token (404 Not Found)
+#### No Match Found (`status.code == 1001`)
 ```json
 {
-  "matched": false,
-  "fallback_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "status": {
+    "code": 1001,
+    "msg": "No result",
+    "version": "1.0"
+  }
 }
 ```
 
 ---
 
-### 2. Fallback Audio Recognition
+## 2. AudD Music Recognition API (Secondary Provider)
 
-Proxies compressed audio to commercial recognition providers (AudD / ACRCloud) using an authenticated single-use token issued on a local cache miss.
+AudD provides song identification with simple token-based authentication.
 
-- **Method**: `POST`
-- **Path**: `/v1/recognize/fallback`
-- **Headers**:
-  - `Authorization: Bearer <fallback_token>`
-  - `Content-Type: audio/ogg` (or `audio/mpeg`, `audio/wav`)
+- **Protocol**: HTTPS POST
+- **Host**: `api.audd.io`
+- **Endpoint**: `/`
+- **Content-Type**: `multipart/form-data; boundary=----HearThisBoundary<RandomToken>`
 
-#### Request Body
-Binary audio buffer (typically 25 KB Opus/MP3 or 110 KB 16-bit PCM).
+### Request Multipart Form Fields
 
-#### Response: Fallback Match Found (200 OK)
+| Field Name | Type | Description |
+| :--- | :--- | :--- |
+| `file` | Binary | 16-bit linear PCM WAV audio buffer |
+| `api_token` | String | AudD user API token |
+| `return` | String | Comma-delimited list of extra metadata providers: `timecode,apple_music,spotify` |
+
+### Expected Response Format (JSON)
+
+#### Successful Match (`status == "success"` and `result != null`)
 ```json
 {
-  "matched": true,
-  "provider": "audd",
-  "track": {
-    "title": "Midnight City",
-    "artist": "M83",
-    "album": "Hurry Up, We're Dreaming",
-    "release_date": "2011-10-18"
+  "status": "success",
+  "result": {
+    "title": "Starboy",
+    "artist": "The Weeknd ft. Daft Punk",
+    "album": "Starboy",
+    "release_date": "2016-11-25",
+    "song_link": "https://lis.tn/Starboy"
   }
 }
 ```
 
-#### Response: Token Invalid or Already Consumed (401 Unauthorized)
+#### No Match Found
 ```json
 {
-  "detail": "Invalid, expired, or already consumed fallback token"
+  "status": "success",
+  "result": null
 }
 ```
 
 ---
 
-### 3. Catalog Batch Ingestion (Internal / Admin)
+## 3. Local Client Configuration Schema
 
-Ingests pre-computed song landmarks into the PostgreSQL database.
-
-- **Method**: `POST`
-- **Path**: `/v1/catalog/ingest`
-- **Content-Type**: `application/json`
-
-#### Request Body
-```json
-{
-  "title": "Track Title",
-  "artist": "Artist Name",
-  "duration_seconds": 210,
-  "fingerprints": [
-    [-142081920, 14],
-    [89102341, 19]
-  ]
-}
+HearThis automatically persists user credentials and UI state in:
+```
+%APPDATA%\SongDetector\native_config.txt
 ```
 
-#### Response (201 Created)
-```json
-{
-  "song_id": 104,
-  "inserted_fingerprints": 3412
-}
+### File Format Specification
+The configuration is stored as newline-separated UTF-8 key-value pairs (`key=value`):
+
+```ini
+provider=acrcloud
+acr_host=identify-eu-west-1.acrcloud.com
+acr_key=ab12cd34ef567890
+acr_secret=1a2b3c4d5e6f7g8h9i0j
+audd_token=
+duration=10
 ```
+
+### Configuration Keys Reference
+
+| Key | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `provider` | `acrcloud` \| `audd` | `acrcloud` | Active cloud provider selected by the user |
+| `acr_host` | String | `""` | ACRCloud project endpoint host |
+| `acr_key` | String | `""` | ACRCloud access key |
+| `acr_secret` | String | `""` | ACRCloud access secret |
+| `audd_token` | String | `""` | AudD API token |
+| `duration` | Integer (`5` \| `10`) | `10` | Audio capture duration in seconds |

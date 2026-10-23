@@ -107,6 +107,18 @@ The compiled executable will be located at `build/Release/HearThis.exe`.
 
 ---
 
+## 📚 Technical Documentation
+
+Comprehensive technical documentation is available in the [`docs/`](docs/) directory:
+
+- [**System Architecture**](docs/architecture.md): Deep dive into the WASAPI loopback engine, audio pipeline, cloud transport, and Win32 UI threading model.
+- [**Cloud API & Integration Reference**](docs/api-reference.md): Specification of ACRCloud (HMAC-SHA1) and AudD multipart protocols, payload parameters, and configuration schema.
+- [**DSP & Audio Processing Specification**](docs/dsp-specification.md): Mathematical formulations for stereo downmixing, RMS silence gate ($-50\text{ dBFS}$), 16-bit linear PCM quantization, and 44-byte RIFF header packing.
+- [**Operator & Execution Guide**](docs/run-guide.md): Build instructions, CTest execution steps, and first-time configuration walkthrough.
+- [**Implementation Status & Future Roadmap**](docs/future-implementations.md): Current milestone matrix and planned enhancements (global hotkeys, system tray, local SQLite history).
+
+---
+
 ## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

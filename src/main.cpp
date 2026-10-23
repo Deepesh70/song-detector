@@ -210,13 +210,32 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         g_font_regular = CreateFontA(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS,
                                     CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
 
-        // Header Title
-        HWND hTitle = CreateWindowA("STATIC", "HearThis", WS_VISIBLE | WS_CHILD, 28, 16, 200, 26, hwnd, nullptr, nullptr, nullptr);
-        SendMessage(hTitle, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_title), TRUE);
+        // Header Title & Logo Icon
+        HICON hLogo = reinterpret_cast<HICON>(LoadImageA(GetModuleHandleA(nullptr), MAKEINTRESOURCEA(1), IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR));
+        if (!hLogo) {
+            hLogo = reinterpret_cast<HICON>(LoadImageA(nullptr, "assets\\icon.ico", IMAGE_ICON, 32, 32, LR_LOADFROMFILE));
+        }
 
-        HWND hSub = CreateWindowA("STATIC", "Identify songs playing through your speakers.", WS_VISIBLE | WS_CHILD,
-                                  28, 44, 440, 18, hwnd, nullptr, nullptr, nullptr);
-        SendMessage(hSub, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
+        if (hLogo) {
+            HWND hIconCtrl = CreateWindowA("STATIC", "", WS_VISIBLE | WS_CHILD | SS_ICON,
+                                           28, 18, 32, 32, hwnd, nullptr, nullptr, nullptr);
+            SendMessage(hIconCtrl, STM_SETICON, reinterpret_cast<WPARAM>(hLogo), 0);
+
+            HWND hTitle = CreateWindowA("STATIC", "HearThis", WS_VISIBLE | WS_CHILD,
+                                        70, 14, 200, 26, hwnd, nullptr, nullptr, nullptr);
+            SendMessage(hTitle, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_title), TRUE);
+
+            HWND hSub = CreateWindowA("STATIC", "Identify songs playing through your speakers.", WS_VISIBLE | WS_CHILD,
+                                      70, 42, 400, 18, hwnd, nullptr, nullptr, nullptr);
+            SendMessage(hSub, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
+        } else {
+            HWND hTitle = CreateWindowA("STATIC", "HearThis", WS_VISIBLE | WS_CHILD, 28, 16, 200, 26, hwnd, nullptr, nullptr, nullptr);
+            SendMessage(hTitle, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_title), TRUE);
+
+            HWND hSub = CreateWindowA("STATIC", "Identify songs playing through your speakers.", WS_VISIBLE | WS_CHILD,
+                                      28, 44, 440, 18, hwnd, nullptr, nullptr, nullptr);
+            SendMessage(hSub, WM_SETFONT, reinterpret_cast<WPARAM>(g_font_regular), TRUE);
+        }
 
         // Provider Selector Row
         HWND hLblProv = CreateWindowA("STATIC", "Music Provider:", WS_VISIBLE | WS_CHILD, 28, 72, 120, 18, hwnd, nullptr, nullptr, nullptr);
@@ -425,6 +444,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    HICON hIcon = LoadIconA(hInstance, MAKEINTRESOURCEA(1));
+    if (!hIcon) {
+        hIcon = reinterpret_cast<HICON>(LoadImageA(nullptr, "assets\\icon.ico", IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE));
+    }
+
     WNDCLASSEXA wc = {0};
     wc.cbSize = sizeof(WNDCLASSEXA);
     wc.lpfnWndProc = WndProc;
@@ -432,6 +456,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     wc.lpszClassName = "HearThisNativeWindow";
     wc.hbrBackground = CreateSolidBrush(RGB(24, 24, 28));
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wc.hIcon = hIcon;
+    wc.hIconSm = hIcon;
 
     if (!RegisterClassExA(&wc)) {
         return 1;
@@ -456,6 +482,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
 
     if (!hwnd) {
         return 1;
+    }
+
+    if (hIcon) {
+        SendMessage(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hIcon));
+        SendMessage(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hIcon));
     }
 
     BOOL dark_mode = TRUE;

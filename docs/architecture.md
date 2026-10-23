@@ -1,70 +1,72 @@
 # System Architecture
 
 ## 1. System Overview
-Song Detector is structured into three distinct operational domains:
-1. **Desktop Client Domain (Windows)**: Intercepts native application audio via WASAPI loopback, pre-filters and resamples audio buffers, and extracts discrete landmark hashes.
-2. **Recognition & Matching Service Domain (Backend)**: Ingests compact hash payloads, performs covering index lookups against PostgreSQL, evaluates sliding-window histogram prominence, and returns track metadata.
-3. **Fallback & Storage Domain**: Houses track catalog metadata, inverted posting lists, Redis token state, and authenticated proxy adapters to commercial recognition providers (AudD / ACRCloud).
+
+HearThis is a high-performance native Windows desktop audio identification system engineered in modern C++17. The application runs as a self-contained 325 KB executable with zero third-party dependencies, linking strictly against native Windows system libraries.
+
+The application captures internal system audio playback directly from the Windows audio mixer, performs real-time audio conditioning and silence gating, packs standard linear PCM WAV in memory, and queries commercial cloud recognition providers (ACRCloud and AudD) using native Windows cryptographic signing and HTTP transport.
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Windows Desktop Client"]
-        A["WASAPI Loopback Capture (48kHz Float32 Stereo)"] --> B["Active Clock Keep-Alive (Zero-Volume Stream)"]
-        A --> C["Mono Downmix + RMS Energy Gate (Reject < -50 dBFS)"]
-        C -->|"Pass"| D["Polyphase Anti-Aliasing Resampler -> 11,025 Hz"]
-        D --> E["5-Second Ring Buffer (55,125 samples)"]
-        E --> F["STFT + Dynamic Floor (-45 dB)"]
-        F --> G["5-Band 2D Local Maxima + Top-5 Amplitude Pairing"]
-        G --> H["Extract Pairs: [[signed_hash, t_query], ...] (Max 800)"]
+    subgraph CaptureEngine ["WASAPI Loopback Capture (wasapi_capture.cpp)"]
+        A["Active Playback Stream (Spotify, YouTube, Games)"] --> B["IAudioCaptureClient (Loopback)"]
+        C["Active Clock Keep-Alive (Zero-Volume Playback)"] -. Keeps Clock Active .-> B
+        B --> D["Raw 48kHz Stereo Float32 PCM Packets"]
     end
 
-    subgraph Backend ["Backend Recognition Service"]
-        H -->|"POST /v1/recognize [[hash, t_query], ...]"| I["FastAPI Gateway"]
-        I --> J["SQL: unnest($1) CROSS JOIN LATERAL (LIMIT 1000)"]
-        J --> K[("PostgreSQL Index-Only Scan (Covering Index)")]
-        K --> L["Sliding Window Histogram: H[t-1] + H[t] + H[t+1]"]
-        L --> M{"V1 >= 15 AND V1/V_noise >= 3.0?"}
-        M -->|"Yes"| N["Return Local Track Metadata"]
+    subgraph ProcessingPipeline ["Audio Conditioning & DSP (audio_processor.cpp)"]
+        D --> E["Stereo-to-Mono Downmixing"]
+        E --> F["RMS Energy Gate (Threshold: -50 dBFS)"]
+        F -->|"Silence (< -50 dBFS)"| G["Drop Buffer & Report Silence"]
+        F -->|"Audio Active"| H["Quantize to 16-Bit Signed Integer PCM"]
+        H --> I["In-Memory Standard 44-Byte RIFF WAV Serialization"]
     end
 
-    subgraph FallbackDomain ["Fallback & External Recognition"]
-        M -->|"No"| O["Generate Fallback JWT (jti) + SET fallback_nonce:<jti> EX 30"]
-        O --> P["Return 404 + Signed Token"]
-        P --> Q["Client Encodes Buffer -> 25 KB Opus/MP3"]
-        Q -->|"POST /v1/recognize/fallback + Token"| R["Gateway: Redis GETDEL fallback_nonce:<jti>"]
-        R -->|"Valid Nonce"| S["Proxy to AudD / ACRCloud"]
-        R -->|"Invalid / Replayed"| T["401 Unauthorized"]
-        S --> U["Return Third-Party Metadata"]
+    subgraph CloudTransport ["Cloud Recognition Engine (api_client.cpp)"]
+        I --> J{"Provider Selector"}
+        J -->|"ACRCloud (Default)"| K["Generate ISO-8601 Timestamp + String-to-Sign"]
+        K --> L["BCrypt HMAC-SHA1 + Crypt32 Base64 Signing"]
+        L --> M["WinHTTP POST -> https://host/v1/identify"]
+        J -->|"AudD (Secondary)"| N["WinHTTP Multipart POST -> https://api.audd.io/"]
+        M --> O["WinHTTP Response Streaming & JSON Parsing"]
+        N --> O
+    end
+
+    subgraph UserInterface ["Native Win32 GUI (main.cpp)"]
+        O --> P["Worker Thread Dispatches WM_APP_SCAN_COMPLETE"]
+        P --> Q["Main GUI Window (Segoe UI, Immersive Dark Mode)"]
+        Q --> R["Display Song Title, Artist, Album, and Link"]
+        Q --> S["Persist Settings to %APPDATA%/SongDetector/native_config.txt"]
     end
 ```
 
 ---
 
-## 2. Windows Loopback Capture Architecture
-Capturing internal application audio without a physical microphone requires interfacing with the Windows Audio Session API (`WASAPI`) in loopback mode (`AUDCLNT_STREAMFLAGS_LOOPBACK`):
-- **Native Format Handling**: Windows shared-mode mixers typically stream 32-bit floating-point PCM at $48,000\text{ Hz}$ stereo. The capture engine accepts native hardware frames directly without forcing driver conversion.
-- **Clock Keep-Alive**: When no desktop applications are producing sound, WASAPI stops dispatching buffer packets. To prevent worker starvation or indefinite blocking during silence, the client runs a continuous zero-volume render stream alongside the loopback client, maintaining a continuous hardware clock.
-- **Silence Gate**: Captures are analyzed for Root-Mean-Square (RMS) energy before processing. Buffers with $\text{dBFS} < -50$ are discarded at zero CPU cost.
+## 2. Core Subsystems
 
----
+### 2.1 WASAPI Loopback Capture (`wasapi_capture.cpp`)
+Capturing internal desktop audio without a microphone requires interfacing with the Windows Audio Session API (`WASAPI`) via Component Object Model (`COM`):
+- **Loopback Mode (`AUDCLNT_STREAMFLAGS_LOOPBACK`)**: Attached to `eRender` console endpoint, capturing exact output sent to speakers or headphones without microphone bleed or ambient room noise.
+- **Mix Format Handling**: Accepts the audio engine's shared-mode mix format (`WAVE_FORMAT_EXTENSIBLE` / IEEE 32-bit floating-point at $48,000\text{ Hz}$ stereo) without requiring driver resampling.
+- **Active Clock Keep-Alive**: When no desktop applications are producing sound, WASAPI loopback stops dispatching audio buffer packets. To prevent worker starvation or deadlock, HearThis initializes a silent `IAudioRenderClient` stream feeding zero-amplitude frames on a dedicated background thread, keeping the hardware clock ticking continuously.
 
-## 3. Database Architecture & Scalability
-- **Storage Strategy**:
-  - `tracks`: Stores canonical metadata (title, artist, duration, total hash count).
-  - `fingerprints`: Stores discrete integer landmarks `(hash INT, song_id INT, offset_frames INT)`.
-- **Index-Only Scans**:
-  - A covering index `CREATE INDEX idx_fingerprints_hash_covering ON fingerprints (hash) INCLUDE (song_id, offset_frames);` stores all required columns directly within the B-Tree leaf pages.
-  - To prevent fallback to table heap page fetches, the ingestion worker invokes `VACUUM ANALYZE fingerprints;` post-batch to mark pages visible in PostgreSQL's Visibility Map.
-- **Mitigating Complexity Attacks**:
-  - Malicious or dense common hashes can pull millions of rows. Query execution enforces a per-hash cap using `CROSS JOIN LATERAL (...) LIMIT 1000`.
+### 2.2 Audio Processing & Silence Gate (`audio_processor.cpp`)
+The audio processing subsystem operates on contiguous in-memory sample vectors:
+- **Stereo Downmix**: Averages left and right channels into a single mono channel:
+  $$x_{\text{mono}}[n] = \frac{x_{\text{left}}[n] + x_{\text{right}}[n]}{2}$$
+- **RMS Energy Gating**: Computes Root-Mean-Square energy across the entire captured duration:
+  $$\text{RMS} = \sqrt{\frac{1}{N} \sum_{n=0}^{N-1} x[n]^2}, \quad \text{dBFS} = 20 \log_{10}(\text{RMS} + 10^{-12})$$
+  If $\text{dBFS} < -50$, processing stops immediately, avoiding unnecessary network calls and battery drain.
+- **RIFF WAV Packing**: Converts clamped $[-1.0, 1.0]$ floating-point samples to 16-bit signed PCM integers (`int16_t`) and prepends a canonical 44-byte RIFF header in memory.
 
----
+### 2.3 Cloud Transport & Native Cryptography (`api_client.cpp`)
+Network communication and cryptographic signing are implemented strictly through native Windows DLLs:
+- **Windows HTTP Services (`winhttp.dll`)**: Uses native session and connection handles (`HINTERNET`) with automatic TLS 1.2/1.3 negotiation, redirect handling, and proxy resolution.
+- **Cryptography Next Generation (`bcrypt.dll`)**: Computes HMAC-SHA1 signatures required by ACRCloud using `BCryptOpenAlgorithmProvider` with `BCRYPT_ALG_HANDLE_HMAC_FLAG`, `BCryptGenerateSymmetricKey`, and `BCryptFinishHash`.
+- **Cryptographic Encoding (`crypt32.dll`)**: Converts binary cryptographic digests to URL-safe Base64 strings via `CryptBinaryToStringA(CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF)`.
 
-## 4. Fallback Architecture (Two-Step Token Protocol)
-1. **Hash First**: Clients send lightweight landmark tuples `[[signed_int32, t_query], ...]`, consuming less than $6\text{ KB}$ of bandwidth.
-2. **Cryptographic Single-Use Handshake**: If local catalog matching fails to reach the confidence threshold, the backend generates a short-lived JSON Web Token containing a random UUID `jti`. The `jti` is cached in Redis with a 30-second TTL:
-   ```
-   SET fallback_nonce:<jti> 1 EX 30 NX
-   ```
-3. **Controlled Audio Dispatch**: The client compresses the audio buffer into an Opus/MP3 snippet ($\approx 25\text{ KB}$) and dispatches it to `/v1/recognize/fallback` with the Bearer token.
-4. **Atomic Invalidation**: The backend executes `GETDEL fallback_nonce:<jti>`. If the key exists, it is deleted atomically and the audio payload is forwarded to AudD/ACRCloud. Replay attacks immediately return `401 Unauthorized`.
+### 2.4 Native Win32 UI & Configuration (`main.cpp`)
+- **Native Win32 Controls**: Built with raw `CreateWindowExW`, standard Win32 edit boxes, buttons, radio options, and `Segoe UI` typography.
+- **Desktop Window Manager (`dwmapi.dll`)**: Activates Windows 11 immersive dark mode title bars via `DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &enable, sizeof(enable))`.
+- **Asynchronous Execution**: UI events trigger background worker threads (`std::thread`), leaving the message pump (`GetMessage`/`DispatchMessage`) unblocked. Thread completion reports back to the UI thread via custom Windows messages (`WM_APP_SCAN_COMPLETE`).
+- **Configuration Persistence**: Flat key-value storage in `%APPDATA%\SongDetector\native_config.txt` automatically saves provider selections, credentials, and scan duration preferences.
