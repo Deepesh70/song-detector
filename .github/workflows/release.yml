@@ -48,6 +48,10 @@ jobs:
       run: |
         Compress-Archive -Path dist\HearThis.exe -DestinationPath dist\HearThis-windows-x64.zip -Force
 
+    - name: Build Windows Setup Installer with Inno Setup
+      run: |
+        iscc installer/HearThis.iss
+
     - name: Publish GitHub Release
       uses: softprops/action-gh-release@v2
       with:
@@ -57,6 +61,7 @@ jobs:
         prerelease: false
         generate_release_notes: true
         files: |
+          dist/HearThis-Setup-*.exe
           dist/HearThis.exe
           dist/HearThis-windows-x64.zip
       env:

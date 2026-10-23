@@ -66,9 +66,35 @@ def generate_app_icon():
     painter.end()
 
     image.save(str(icon_path_png), "PNG")
+
+    # Generate full Windows Explorer multi-resolution ICO (16, 24, 32, 48, 64, 128, 256)
+    import struct
+    sizes = [16, 24, 32, 48, 64, 128, 256]
+    png_blobs = []
+    for s in sizes:
+        scaled = image.scaled(
+            s, s, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+        )
+        ba = QtCore.QByteArray()
+        buf = QtCore.QBuffer(ba)
+        buf.open(QtCore.QIODevice.OpenModeFlag.WriteOnly)
+        scaled.save(buf, "PNG")
+        png_blobs.append((s, bytes(ba)))
+
+    header = struct.pack("<HHH", 0, 1, len(sizes))
+    offset = 6 + 16 * len(sizes)
+    entries = []
+    for s, blob in png_blobs:
+        w = 0 if s == 256 else s
+        h = 0 if s == 256 else s
+        entry = struct.pack("<BBBBHHII", w, h, 0, 0, 1, 32, len(blob), offset)
+        entries.append(entry)
+        offset += len(blob)
+
+    ico_data = header + b"".join(entries) + b"".join(b for _, b in png_blobs)
     icon_path_ico = assets_dir / "icon.ico"
-    image.save(str(icon_path_ico), "ICO")
-    print(f"Generated app icon at {icon_path_png} and {icon_path_ico}")
+    icon_path_ico.write_bytes(ico_data)
+    print(f"Generated multi-res app icon at {icon_path_png} and {icon_path_ico}")
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
