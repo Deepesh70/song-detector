@@ -4,7 +4,7 @@
 #define MyAppVersion "1.2.0"
 #endif
 #define MyAppPublisher "HearThis Team"
-#define MyAppURL "https://github.com/aadit/song-detector"
+#define MyAppURL "https://github.com/deepesh70/song-detector"
 #define MyAppExeName "HearThis.exe"
 
 [Setup]
