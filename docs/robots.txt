@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://deepesh70.github.io/song-detector/sitemap.xml
