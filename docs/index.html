@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HearThis - Native Windows System Audio Recognition (C++17)</title>
+  <meta name="description" content="Lightweight native Windows desktop song detector written in modern C++17. Captures system audio via WASAPI loopback without microphone bleed, gates silence, and identifies songs via ACRCloud and AudD.">
+  <meta name="keywords" content="Windows song detector, music recognition PC, WASAPI loopback, Shazam alternative Windows, desktop audio identifier, C++ song detector, ACRCloud, AudD">
+  <meta name="author" content="HearThis Team">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="HearThis - Native Windows Audio Recognition">
+  <meta property="og:description" content="Lightweight native Windows desktop song detector in modern C++17. Captures system audio via WASAPI loopback without microphone bleed.">
+  <meta property="og:url" content="https://aadit.github.io/song-detector/">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HearThis - Native Windows Audio Recognition">
+  <meta name="twitter:description" content="350 KB standalone Windows desktop application for identifying music playing through your computer speakers.">
+
+  <!-- Google Structured Data (Schema.org) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "HearThis",
+    "operatingSystem": "Windows 10, Windows 11",
+    "applicationCategory": "MultimediaApplication",
+    "fileSize": "350KB",
+    "softwareVersion": "1.2.0",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "High-performance native Windows desktop audio identification system in modern C++17. Captures internal playback via WASAPI loopback without microphone bleed and queries ACRCloud and AudD cloud recognition.",
+    "downloadUrl": "https://github.com/aadit/song-detector/releases/latest"
+  }
+  </script>
+
+  <style>
+    :root {
+      --bg: #141519;
+      --card-bg: #1c1e24;
+      --border: #2e323c;
+      --text-main: #f0f3f8;
+      --text-muted: #9ca3af;
+      --accent: #10b981;
+      --accent-hover: #0d9464;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      padding: 0 16px;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 0 64px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .brand-mark svg {
+      width: 36px;
+      height: 36px;
+      fill: var(--accent);
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .tagline {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 620px;
+      margin: 0 auto 28px;
+    }
+
+    .meta-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    .badge {
+      font-size: 0.8125rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 24px;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #ffffff;
+      border: 1px solid var(--accent);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background-color: #242730;
+      border-color: #3e4452;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 56px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .card-title {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    section.specs {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 32px 24px;
+      margin-bottom: 56px;
+    }
+
+    section.specs h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #ffffff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      text-align: left;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    td:first-child {
+      color: #ffffff;
+      font-weight: 500;
+      width: 35%;
+    }
+
+    td:last-child {
+      color: var(--text-muted);
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3v18M8 6v12M16 6v12M4 10v4M20 10v4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <h1>HearThis</h1>
+      <p class="tagline">Native Windows desktop audio identification system in modern C++17. Captures system audio playback via WASAPI loopback without microphone bleed.</p>
+      
+      <div class="meta-badges">
+        <span class="badge">Windows 10 / 11 Native</span>
+        <span class="badge">350 KB Standalone Executable</span>
+        <span class="badge">Zero Third-Party Dependencies</span>
+        <span class="badge">WASAPI Loopback Capture</span>
+      </div>
+
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/aadit/song-detector/releases/latest">Download for Windows (v1.2.0)</a>
+        <a class="btn btn-secondary" href="https://github.com/aadit/song-detector">View Source on GitHub</a>
+      </div>
+    </header>
+
+    <main>
+      <div class="grid">
+        <div class="card">
+          <h3 class="card-title">WASAPI Loopback Capture</h3>
+          <p>Captures 48 kHz stereo system audio directly from the Windows audio rendering endpoint without microphone noise or ambient room bleed.</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Zero-Dependency Architecture</h3>
+          <p>Links strictly against native Windows system DLLs (winhttp, bcrypt, crypt32, user32, dwmapi). Requires no Python runtime or external frameworks.</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">RMS Silence Energy Gating</h3>
+          <p>Analyzes incoming audio buffers against a -50 dBFS energy floor, automatically dropping silent frames to preserve network bandwidth and battery.</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Direct Cloud Recognition</h3>
+          <p>Authenticates directly with ACRCloud using native BCrypt HMAC-SHA1 signatures and AudD using streaming multipart HTTP requests.</p>
+        </div>
+      </div>
+
+      <section class="specs">
+        <h2>Technical Architecture Specifications</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Specification</th>
+              <th>Implementation Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Language Standard</td>
+              <td>ISO Modern C++17 (MSVC x64)</td>
+            </tr>
+            <tr>
+              <td>Audio Capture</td>
+              <td>WASAPI Loopback (IAudioCaptureClient COM Interface)</td>
+            </tr>
+            <tr>
+              <td>Cryptographic Signing</td>
+              <td>Windows Cryptography Next Generation (bcrypt.dll / HMAC-SHA1)</td>
+            </tr>
+            <tr>
+              <td>HTTP Transport</td>
+              <td>Windows HTTP Services (winhttp.dll / TLS 1.2+ connection reuse)</td>
+            </tr>
+            <tr>
+              <td>Binary Footprint</td>
+              <td>~350 KB Standalone Executable (HearThis.exe)</td>
+            </tr>
+            <tr>
+              <td>Supported Providers</td>
+              <td>ACRCloud (Default Provider) and AudD (Secondary Choice)</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+
+    <footer>
+      <p>HearThis is licensed under the <a href="https://github.com/aadit/song-detector/blob/main/LICENSE">MIT License</a>. Created with modern C++17 for Windows systems.</p>
+    </footer>
+  </div>
+</body>
+</html>
