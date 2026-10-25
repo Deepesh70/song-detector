@@ -20,8 +20,8 @@ Identifications query direct cloud API providers (**ACRCloud** and **AudD**) wit
 
 Get the latest release directly from **[GitHub Releases](https://github.com/deepesh70/song-detector/releases/latest)**:
 
-- **Installer**: `HearThis-Setup-v1.2.X.exe` — Ultra-light Windows setup wizard with Desktop shortcuts and Start Menu entry.
-- **Portable**: `HearThis-v1.2.X-portable.zip` — Standalone portable build (~350 KB). Extract and double-click `HearThis.exe` without installation.
+- **Installer**: `HearThis-Setup-v2.0.0.exe` — Ultra-light Windows setup wizard with Desktop shortcuts and Start Menu entry.
+- **Portable**: `HearThis-v2.0.0-portable.zip` — Standalone portable build (~367 KB). Extract and double-click `HearThis.exe` without installation.
 
 ---
 
