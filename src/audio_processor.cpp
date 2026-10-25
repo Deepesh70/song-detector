@@ -27,13 +27,98 @@ bool is_silent(const std::vector<float>& samples, float threshold_db) {
     return dbfs < threshold_db;
 }
 
-std::vector<float> stereo_to_mono(const std::vector<float>& stereo_samples) {
-    size_t mono_count = stereo_samples.size() / 2;
-    std::vector<float> mono(mono_count);
+std::vector<float> to_mono(const std::vector<float>& samples, uint16_t channels) {
+    if (samples.empty() || channels <= 1) {
+        return samples;
+    }
 
-    // Interleaved stereo: [Left_0, Right_0, Left_1, Right_1, ...]
-    for (size_t i = 0; i < mono_count; ++i) {
-        mono[i] = (stereo_samples[2 * i] + stereo_samples[2 * i + 1]) * 0.5f;
+    size_t frame_count = samples.size() / channels;
+    std::vector<float> mono(frame_count, 0.0f);
+    float inv_channels = 1.0f / static_cast<float>(channels);
+
+    for (size_t i = 0; i < frame_count; ++i) {
+        float sum = 0.0f;
+        for (uint16_t c = 0; c < channels; ++c) {
+            sum += samples[i * channels + c];
+        }
+        mono[i] = sum * inv_channels;
+    }
+
+    return mono;
+}
+
+std::vector<float> apply_high_pass_filter(const std::vector<float>& samples, uint32_t sample_rate, float cutoff_hz) {
+    if (samples.empty()) {
+        return samples;
+    }
+
+    // 1st-order IIR RC high-pass filter: y[n] = alpha * (y[n-1] + x[n] - x[n-1])
+    float dt = 1.0f / static_cast<float>(sample_rate);
+    float rc = 1.0f / (2.0f * 3.14159265358979323846f * cutoff_hz);
+    float alpha = rc / (rc + dt);
+
+    std::vector<float> filtered(samples.size());
+    filtered[0] = samples[0];
+
+    for (size_t i = 1; i < samples.size(); ++i) {
+        filtered[i] = alpha * (filtered[i - 1] + samples[i] - samples[i - 1]);
+    }
+
+    return filtered;
+}
+
+std::vector<float> normalize_audio(const std::vector<float>& samples, float target_peak_dbfs, float min_rms_dbfs) {
+    if (samples.empty()) {
+        return samples;
+    }
+
+    double sum_squares = 0.0;
+    float max_abs = 0.0f;
+
+    for (float s : samples) {
+        sum_squares += static_cast<double>(s) * static_cast<double>(s);
+        float a = std::fabs(s);
+        if (a > max_abs) {
+            max_abs = a;
+        }
+    }
+
+    double rms = std::sqrt(sum_squares / static_cast<double>(samples.size()));
+    double rms_dbfs = 20.0 * std::log10(rms + 1e-9);
+
+    // If signal is below minimum noise floor or peak is negligible, don't boost thermal hiss
+    if (rms_dbfs < static_cast<double>(min_rms_dbfs) || max_abs < 1e-4f) {
+        return samples;
+    }
+
+    // Linear target peak (e.g. -1.0 dBFS ≈ 0.891)
+    float target_linear = std::pow(10.0f, target_peak_dbfs / 20.0f);
+    // Safety gain cap of 20 dB (10.0x) to prevent distortion
+    float gain = std::min(target_linear / max_abs, 10.0f);
+
+    std::vector<float> normalized(samples.size());
+    for (size_t i = 0; i < samples.size(); ++i) {
+        normalized[i] = std::clamp(samples[i] * gain, -1.0f, 1.0f);
+    }
+
+    return normalized;
+}
+
+std::vector<float> condition_audio(
+    const std::vector<float>& raw_samples,
+    uint16_t channels,
+    uint32_t sample_rate,
+    AudioSource source
+) {
+    // 1. Channel-aware downmixing
+    std::vector<float> mono = to_mono(raw_samples, channels);
+
+    if (source == AudioSource::Microphone) {
+        // 2. 80 Hz high-pass filter: strip DC offset and 50/60 Hz mains hum/rumble
+        mono = apply_high_pass_filter(mono, sample_rate, 80.0f);
+
+        // 3. Peak normalization with noise-gate floor: scale to -1.0 dBFS if RMS >= -48 dBFS
+        mono = normalize_audio(mono, -1.0f, -48.0f);
     }
 
     return mono;
@@ -81,7 +166,7 @@ std::vector<uint8_t> pcm_to_wav_bytes(const std::vector<float>& mono_samples, ui
     for (size_t i = 0; i < mono_samples.size(); ++i) {
         float sample = mono_samples[i];
         // Clamp to prevent audio clipping distortion
-        sample = std::max(-1.0f, std::min(1.0f, sample));
+        sample = std::clamp(sample, -1.0f, 1.0f);
         pcm_data[i] = static_cast<int16_t>(sample * 32767.0f);
     }
 

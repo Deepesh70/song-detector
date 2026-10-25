@@ -130,8 +130,9 @@ AudD provides song identification with simple token-based authentication.
 
 HearThis automatically persists user credentials and UI state in:
 ```
-%APPDATA%\SongDetector\native_config.txt
+%APPDATA%\HearThis\config.txt
 ```
+*(Note: If a legacy config file exists at `%APPDATA%\SongDetector\native_config.txt`, it is automatically migrated upon startup.)*
 
 ### File Format Specification
 The configuration is stored as newline-separated UTF-8 key-value pairs (`key=value`):
@@ -143,6 +144,7 @@ acr_key=ab12cd34ef567890
 acr_secret=1a2b3c4d5e6f7g8h9i0j
 audd_token=
 duration=10
+audio_source=speakers
 ```
 
 ### Configuration Keys Reference
@@ -155,3 +157,4 @@ duration=10
 | `acr_secret` | String | `""` | ACRCloud access secret |
 | `audd_token` | String | `""` | AudD API token |
 | `duration` | Integer (`5` \| `10`) | `10` | Audio capture duration in seconds |
+| `audio_source` | `speakers` \| `mic` | `speakers` | Selected input: internal loopback (`speakers`) or microphone (`mic`) |

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HearThis - Native Windows System Audio Recognition (C++17)</title>
-  <meta name="description" content="Lightweight native Windows desktop song detector written in modern C++17. Captures system audio via WASAPI loopback without microphone bleed, gates silence, and identifies songs via ACRCloud and AudD.">
-  <meta name="keywords" content="Windows song detector, music recognition PC, WASAPI loopback, Shazam alternative Windows, desktop audio identifier, C++ song detector, ACRCloud, AudD">
+  <title>HearThis - Native Windows Audio Recognition (C++17)</title>
+  <meta name="description" content="Lightweight native Windows desktop song detector written in modern C++17. Captures internal playback via WASAPI loopback and live room music via microphone, conditions acoustic signals, and identifies songs via ACRCloud and AudD.">
+  <meta name="keywords" content="Windows song detector, music recognition PC, WASAPI loopback, microphone music recognition, Shazam alternative Windows, desktop audio identifier, C++ song detector, ACRCloud, AudD">
   <meta name="author" content="HearThis Team">
   <meta name="robots" content="index, follow">
   <meta name="google-site-verification" content="google5d5def7de4ff5031">
@@ -13,13 +13,13 @@
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="HearThis - Native Windows Audio Recognition">
-  <meta property="og:description" content="Lightweight native Windows desktop song detector in modern C++17. Captures system audio via WASAPI loopback without microphone bleed.">
+  <meta property="og:description" content="Lightweight native Windows desktop song detector in modern C++17. Captures internal playback via WASAPI loopback and ambient room music via microphone.">
   <meta property="og:url" content="https://deepesh70.github.io/song-detector/">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="HearThis - Native Windows Audio Recognition">
-  <meta name="twitter:description" content="350 KB standalone Windows desktop application for identifying music playing through your computer speakers.">
+  <meta name="twitter:description" content="~350 KB standalone Windows desktop application for identifying music playing through speakers or captured live from the room.">
 
   <!-- Google Structured Data (Schema.org) -->
   <script type="application/ld+json">
@@ -36,7 +36,7 @@
       "price": "0",
       "priceCurrency": "USD"
     },
-    "description": "High-performance native Windows desktop audio identification system in modern C++17. Captures internal playback via WASAPI loopback without microphone bleed and queries ACRCloud and AudD cloud recognition.",
+    "description": "High-performance native Windows desktop audio identification system in modern C++17. Captures internal playback via WASAPI loopback and ambient room music via microphone, applying acoustic conditioning before querying ACRCloud and AudD recognition.",
     "downloadUrl": "https://github.com/deepesh70/song-detector/releases/latest"
   }
   </script>
@@ -108,7 +108,7 @@
     .tagline {
       font-size: 1.125rem;
       color: var(--text-muted);
-      max-width: 620px;
+      max-width: 640px;
       margin: 0 auto 28px;
     }
 
@@ -168,8 +168,8 @@
     }
 
     .btn-secondary:hover {
-      background-color: #242730;
-      border-color: #3e4452;
+      background-color: #24272f;
+      border-color: #3f4452;
     }
 
     .grid {
@@ -271,13 +271,13 @@
         </svg>
       </div>
       <h1>HearThis</h1>
-      <p class="tagline">Native Windows desktop audio identification system in modern C++17. Captures system audio playback via WASAPI loopback without microphone bleed.</p>
+      <p class="tagline">Native Windows desktop audio identification system in modern C++17. Captures internal playback (WASAPI loopback) and live room music (Microphone) with acoustic signal conditioning.</p>
       
       <div class="meta-badges">
         <span class="badge">Windows 10 / 11 Native</span>
-        <span class="badge">350 KB Standalone Executable</span>
+        <span class="badge">~350 KB Standalone Executable</span>
         <span class="badge">Zero Third-Party Dependencies</span>
-        <span class="badge">WASAPI Loopback Capture</span>
+        <span class="badge">Dual Input: Loopback &amp; Mic</span>
       </div>
 
       <div class="cta-row">
@@ -289,16 +289,16 @@
     <main>
       <div class="grid">
         <div class="card">
-          <h3 class="card-title">WASAPI Loopback Capture</h3>
-          <p>Captures 48 kHz stereo system audio directly from the Windows audio rendering endpoint without microphone noise or ambient room bleed.</p>
+          <h3 class="card-title">Dual-Source Audio Capture</h3>
+          <p>Seamlessly switch between internal system loopback (Speakers) and physical room microphones (Microphone) to identify songs playing on your PC or across the room.</p>
+        </div>
+        <div class="card">
+          <h3 class="card-title">Acoustic Signal Conditioning</h3>
+          <p>Features 1st-order 80 Hz IIR high-pass filtering to remove room rumble and DC bias, paired with bounded peak normalization and -50 dBFS silence gating.</p>
         </div>
         <div class="card">
           <h3 class="card-title">Zero-Dependency Architecture</h3>
           <p>Links strictly against native Windows system DLLs (winhttp, bcrypt, crypt32, user32, dwmapi). Requires no Python runtime or external frameworks.</p>
-        </div>
-        <div class="card">
-          <h3 class="card-title">RMS Silence Energy Gating</h3>
-          <p>Analyzes incoming audio buffers against a -50 dBFS energy floor, automatically dropping silent frames to preserve network bandwidth and battery.</p>
         </div>
         <div class="card">
           <h3 class="card-title">Direct Cloud Recognition</h3>
@@ -322,7 +322,11 @@
             </tr>
             <tr>
               <td>Audio Capture</td>
-              <td>WASAPI Loopback (IAudioCaptureClient COM Interface)</td>
+              <td>WASAPI Dual-Source: Loopback (eRender) &amp; Microphone (eCapture / eCommunications)</td>
+            </tr>
+            <tr>
+              <td>Acoustic Conditioning</td>
+              <td>Channel-aware downmix, 80 Hz IIR high-pass filter, bounded peak normalization</td>
             </tr>
             <tr>
               <td>Cryptographic Signing</td>
